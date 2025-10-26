@@ -398,6 +398,7 @@ $lang["log_time"] = "Log time";
 $lang["edit_timelog"] = "Edit timelog";
 $lang["delete_timelog"] = "Delete timelog";
 $lang["timesheet_statistics"] = "Timesheet Statistics";
+$lang["log_time"] = "Log time";
 
 /* milestones */
 $lang["add_milestone"] = "Add milestone";

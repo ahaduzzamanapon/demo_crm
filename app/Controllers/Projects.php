@@ -1490,6 +1490,46 @@ class Projects extends Security_Controller {
         }
     }
 
+    function save_manual_timelog() {
+        $this->access_only_team_members();
+
+        $this->validate_submitted_data(array(
+            "project_id" => "numeric|required",
+            "task_id" => "numeric",
+            "start_time" => "required",
+            "end_time" => "required"
+        ));
+
+        $project_id = $this->request->getPost('project_id');
+        $task_id = $this->request->getPost('task_id');
+        $start_time = $this->request->getPost('start_time');
+        $end_time = $this->request->getPost('end_time');
+        $note = $this->request->getPost('note');
+
+        $start_date_time = date("Y-m-d") . " " . $start_time;
+        $end_date_time = date("Y-m-d") . " " . $end_time;
+
+        $start_date_time = convert_date_local_to_utc($start_date_time);
+        $end_date_time = convert_date_local_to_utc($end_date_time);
+
+        $data = array(
+            "project_id" => $project_id,
+            "user_id" => $this->login_user->id,
+            "start_time" => $start_date_time,
+            "end_time" => $end_date_time,
+            "note" => $note ? $note : "",
+            "task_id" => $task_id ? $task_id : 0,
+        );
+
+        $save_id = $this->Timesheets_model->ci_save($data);
+
+        if ($save_id) {
+            echo json_encode(array("success" => true, "data" => $this->_timesheet_row_data($save_id), 'id' => $save_id, 'message' => app_lang('record_saved')));
+        } else {
+            echo json_encode(array("success" => false, 'message' => app_lang('error_occurred')));
+        }
+    }
+
     /* load timesheets view for a project */
 
     function timesheets($project_id) {

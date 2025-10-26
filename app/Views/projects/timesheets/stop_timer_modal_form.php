@@ -1,8 +1,37 @@
-<?php echo form_open(get_uri("projects/timer/" . $project_id . "/stop"), array("id" => "stop-timer-form", "class" => "general-form", "role" => "form")); ?>
+<?php echo form_open(get_uri("projects/save_manual_timelog"), array("id" => "manual-timer-form", "class" => "general-form", "role" => "form")); ?>
 <input type="hidden" name="task_id" value="<?php echo $task_id; ?>" />
+<input type="hidden" name="project_id" value="<?php echo $project_id; ?>" />
 
 <div class="modal-body clearfix">
     <div class="container-fluid">
+        <div class="form-group">
+            <label for="start_time" class=" col-md-12"><?php echo app_lang('start_time'); ?></label>
+            <div class=" col-md-12">
+                <?php
+                echo form_input(array(
+                    "id" => "start_time",
+                    "name" => "start_time",
+                    "class" => "form-control",
+                    "placeholder" => app_lang('start_time'),
+                    "autocomplete" => "off"
+                ));
+                ?>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="end_time" class=" col-md-12"><?php echo app_lang('end_time'); ?></label>
+            <div class=" col-md-12">
+                <?php
+                echo form_input(array(
+                    "id" => "end_time",
+                    "name" => "end_time",
+                    "class" => "form-control",
+                    "placeholder" => app_lang('end_time'),
+                    "autocomplete" => "off"
+                ));
+                ?>
+            </div>
+        </div>
         <div class="form-group">
             <label for="note" class=" col-md-12"><?php echo app_lang('note'); ?></label>
             <div class=" col-md-12">
@@ -38,7 +67,7 @@
 
 <script type="text/javascript">
     $(document).ready(function () {
-        $("#stop-timer-form").appForm({
+        $("#manual-timer-form").appForm({
             onSuccess: function (result) {
                 if (window.existingUrl) {
                     window.location.href = window.existingUrl;
@@ -48,7 +77,12 @@
             }
         });
 
-        $("#stop-timer-form .select2").select2();
+        $('#start_time, #end_time').timepicker({
+            'timeFormat': 'H:i:s',
+            'showMeridian': false
+        });
+
+        $("#manual-timer-form .select2").select2();
         setTimeout(function () {
             $("#note").focus();
         }, 200);
