@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=Edge" >
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Google Meet Integration for RISE CRM">
+        <meta name="author" content="MHL">
+        <link rel="icon" href="assets/images/favicon.png" />
+
+        <title>Google Meet Integration for RISE CRM</title>
+
+        <link href="assets/plugins/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
+        <link href="assets/css/style.css" rel="stylesheet" type="text/css"/>
+
+        <script src="assets/js/jquery-3.6.0.min.js" type="text/javascript"></script>
+        <script src="assets/js/helper.js" type="text/javascript"></script>
+
+    </head>
+
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light fixed-top mb20">
+            <div id="navbar-brand" class="navbar-brand ml15">Google Meet Integration for RISE CRM</div>
+        </nav>
+
+        <div id="content" class="box">
+            <div id="sidebar" class="box-content">
+                <div id="sidebar-scroll">
+                    <ul class="" id="sidebar-menu">
+                        <li class="main"><a href="#installation" title="Installation">Installation</a></li>
+                        <li class="main"><a href="#features" title="Features">Features</a></li>
+                        <li class="main"><a href="#settings" title="Settings">Settings</a></li>
+                        <li class="main"><a href="#upgrading_guide" title="Upgrading Guide">Upgrading Guide</a></li>
+                        <li class="main"><a href="#thanks" title="Thanks">Thanks</a></li>
+                    </ul>
+                </div>          
+            </div>   
+
+            <div class="box-content">
+                <div class="scrollable page-content" id="scrollable-page">
+
+                    <section id="installation">
+                        <div class="card card-default">
+                            <div class="page-title clearfix">
+                                <h1>Installation</h1>
+                            </div>
+                            <div class="p20">
+                                <h5>Quick Installation Guide</h5>
+                                <ul class='file-structure'>
+                                    <li>Go to <b>Settings > Plugins</b>.</li>
+                                    <li>Install the <b>Google-Meet-Integration-for-RISE-CRM.zip </b>which you have downloaded from the Envato Market. <br /> 
+                                        It'll require the item <b>purchase code</b>. Don't use any nulled version for your security.</li>
+                                    <li>If everything is OK, it'll show a success message.</li>
+                                    <li>Activate the plugin from the option dropdown.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="features">
+                        <div class="card card-default">
+                            <div class="page-title clearfix">
+                                <h1>Features</h1>
+                            </div>
+                            <div class="p20">
+                                <ul>
+                                    <li>Schedule meetings with all/specific team members and/or all/specific client contacts.</li>
+                                    <li>Give access permission to non-admin team members to manage meetings.</li>
+                                    <li>Sync your meetings with your Google Calendar.</li>
+                                    <li>Filter meetings easily.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="settings">
+                        <div class="card card-default">
+                            <div class="page-title clearfix">
+                                <h1>Settings</h1>
+                            </div>
+                            <div class="p20">
+                                <p>You'll get the Google Meet Integration settings in <b>Settings > Setup > Google Meet Integration.</b></p>
+
+                                <h5>Google Meet Integration</h5>
+                                <p>You've to integrate <strong>Google Calendar API</strong> to sync with <b>Google Meet</b>. Please follow the steps below to integrate:</p>
+                                <ol>
+                                    <li>
+                                        Go to the <a href="https://console.developers.google.com" target="_blank">Google API Console</a> and Create a <strong>project</strong>. <br />
+                                        <img alt="google_calendar_1" src="assets/images/google_calendar/1.png"></li>
+                                    <li>
+                                        Select your project (1) and click on <strong>Enable APIs and Services</strong> (2). <br />
+                                        <img alt="google_calendar_2" src="assets/images/google_calendar/2.png"></li>
+                                    <li>
+                                        Search for <strong>Google Calendar API</strong> and select that. <br />
+                                        <img  alt="google_calendar_3" src="assets/images/google_calendar/3.png"></li>
+                                    <li>
+                                        Enable the API. <br />
+                                        <img alt="google_calendar_4" src="assets/images/google_calendar/4.png"></li>
+                                    <li>
+                                        Now you've to create the credentials. To create this, go to the API's description page. <br />
+                                        <img  alt="google_calendar_5" src="assets/images/google_calendar/5.png"></li>
+                                    <li>
+                                        Select this options from here and click on the <strong>What credentials do I need?</strong> button.<br />
+                                        <img alt="google_calendar_6" src="assets/images/google_calendar/6.png"></li>
+                                    <li>
+                                        Then you'll get a popup dialog box. <strong>Set up OAuth consent screen.</strong> Click on Set up. <br />
+                                        <img alt="google_calendar_7" src="assets/images/google_calendar/7.png"></li>
+                                    <li>
+                                        The OAuth consent screen form will be appear then. 
+                                        <br />
+                                        In <b>Publishing status</b>, there has two option. Production and testing.
+                                        <br />
+                                        <b>Production:</b> Your site should be HTTPS for this mode.
+                                        <br />
+                                        <b>Testing:</b> You can use any security protocol (HTTPS/HTTP) in testing mode. But you'll get an another page on authentication for this, which is mentioned in point 13.
+                                        <img  alt="google_calendar_8" src="assets/images/google_calendar/8.png"></li>
+                                    <li>
+                                        Click on <b>EDIT APP</b> button and fill up with your desired information. <br />
+                                        <img  alt="google_calendar_9" src="assets/images/google_calendar/9.png">
+                                        <img  alt="google_calendar_10" src="assets/images/google_calendar/10.png">
+                                    </li>
+                                    <li>
+                                        Click <b>Save and continue</b> button on <b>Scopes</b> and <b>Test users</b> step. And click <b>Back to dashboard</b> from <b>Summary</b> tab. <br />
+                                        Click on the <strong>Credentials</strong> tab now from left panel. Click on <strong>Create credentials</strong> button and select <strong>OAuth client ID</strong>. <br />
+                                        <img  alt="google_calendar_11" src="assets/images/google_calendar/11.png"></li>
+                                    <li>
+                                        Select <strong>Web application</strong> for Application type. In 'Authorized redirect URIs', you should add this url <strong>https://yourdomain.com/index.php/google_meet_integration_settings/save_access_token_of_meet</strong>. You'll find this in your integration setting. <br />
+                                        <img alt="google_calendar_11" src="assets/images/google_calendar/12.png">
+                                        <img alt="google_calendar_11" src="assets/images/google_calendar/13.png"></li>
+                                    <li>
+                                        After saving, you'll get the <strong>Client ID</strong> and <strong>Client Secret</strong>. Add them to the <strong>settings</strong> and click on <strong>Save & authorize</strong>.</li>
+                                    <li>
+                                        If you've selected <b>Testing</b> mode in point <b>8</b>, you'll get this option. Select <b>Continue</b> from here. <br />
+                                        <img alt="google_calendar_11" src="assets/images/google_calendar/14.png"></li>
+                                    <li>
+                                        On retrieving from API access, please make sure that, status of Google Meet Integration is showing <strong>Authorized</strong>. </li>
+                                </ol>
+
+                                <p>That's all! You've successfully integrate with your Google Calendar. Now you can create meeting with the integrated calendar API.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="upgrading_guide">
+                        <div class="card card-default">
+                            <div class="page-title clearfix">
+                                <h1>Upgrading Guide</h1>
+                            </div>
+                            <div class="p20">
+                                <p>Please note that you can only download the updates if you had a valid purchase code on installation. </p>
+                                <div class="alert alert-danger">Please backup all files and database before start the installation of updates.</div>
+                                <p>There is a very&nbsp;easy way to update your application.</p>
+                                <p>To install any updates go to <strong>Settings > Plugins > Google Meet Integration > Dropdown > Updates</strong>. The download will be start automatically once any new update is available. Once the download is completed you can install the updates by clicking on the link. That's all!</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="thanks">
+                        <div class="card card-default">
+                            <div class="page-title clearfix">
+                                <h1>Thanks</h1>
+                            </div>
+                            <div class="p20">
+                                <p>
+                                    Thanks again for purchasing this plugin. <br />
+                                    If you have any query or suggestion, please send an email from <a href="https://codecanyon.net/user/MHL" target="_blank">MHL author</a> page.
+                                </p>
+                                <p>
+                                    Best wishes<br>
+                                    MHL Team
+                                </p>
+                                <p><a href="https://codecanyon.net/user/MHL" target="_blank">https://codecanyon.net/user/MHL</a></p>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+            </div>
+        </div>
+
+
+    </body>
+
+</html>
