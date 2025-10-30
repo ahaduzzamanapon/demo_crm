@@ -71,7 +71,7 @@ class Custom_reports extends Security_Controller
                 (SELECT assigned_to, project_id, SUM(estimated_time) as total_estimated_hr FROM $tasks_table WHERE deleted = 0 GROUP BY assigned_to, project_id) as est
                 ON est.assigned_to = u.id AND est.project_id = p.id
             LEFT JOIN
-                (SELECT user_id, project_id, (SUM(TIMESTAMPDIFF(SECOND, start_time, end_time)) + SUM(ROUND((hours * 60), 0) * 60)) as total_spent_seconds FROM $project_time_table WHERE deleted = 0 AND status = 'logged' GROUP BY user_id, project_id) as spt
+                (SELECT user_id, project_id, (COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))), 0) + COALESCE(SUM(hours * 3600), 0)) as total_spent_seconds FROM $project_time_table WHERE deleted = 0 AND status = 'logged' GROUP BY user_id, project_id) as spt
                 ON spt.user_id = u.id AND spt.project_id = p.id
             WHERE
                 u.deleted = 0 AND u.user_type = 'staff'
@@ -81,6 +81,20 @@ class Custom_reports extends Security_Controller
         ";
 
         $view_data['time_tracking_report_data'] = $this->db->query($sql_time)->getResult();
+
+        //summary data
+        $view_data['total_projects'] = count($view_data['project_report_data']);
+        $total_tasks = 0;
+        foreach ($view_data['project_report_data'] as $project) {
+            $total_tasks += $project->total_tasks;
+        }
+        $view_data['total_tasks'] = $total_tasks;
+
+        $total_time_logged_seconds = 0;
+        foreach ($view_data['time_tracking_report_data'] as $item) {
+            $total_time_logged_seconds += $item->total_spent_seconds;
+        }
+        $view_data['total_time_logged'] = format_to_time($total_time_logged_seconds);
 
         return $this->template->rander("custom_reports/index", $view_data);
     }

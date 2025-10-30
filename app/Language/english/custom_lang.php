@@ -19,4 +19,5 @@ $lang["estimated_hr"] = "Estimated Hr";
 $lang["time_spent_hr"] = "Time Spent Hr";
 $lang["remaining_hr"] = "Remaining Hr";
 
+$lang["total_projects"] = "Total Projects";
 return $lang;
