@@ -26,4 +26,5 @@ $lang["task_name"] = "Task Name";
 $lang["member"] = "Member";
 $lang["filter"] = "Filter";
 $lang["clear"] = "Clear";
+$lang["auto_import_from_smarthrm"] = "Auto import from SmartHRM";
 return $lang;

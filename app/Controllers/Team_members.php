@@ -1346,7 +1346,73 @@ class Team_members extends Security_Controller {
             "custom_field_values_array" => $custom_field_values_array
         );
     }
+
+    public function import_from_smarthrm() {
+        $this->access_only_admin_or_member_creator();
+
+        $api_url = "http://173.212.223.213/smarthr/api/employee_list";
+        $response = @file_get_contents($api_url);
+
+        if ($response === FALSE) {
+            echo json_encode(array("success" => false, 'message' => 'Failed to fetch data from the API. Check server connectivity and if allow_url_fopen is enabled in php.ini.'));
+            return;
+        }
+
+        $data = json_decode($response, true);
+
+        if (!$data || !isset($data['data']['Employee'])) {
+            echo json_encode(array("success" => false, 'message' => 'Invalid data received from the API.'));
+            return;
+        }
+
+        $employees = $data['data']['Employee'];
+        $imported_count = 0;
+        $skipped_count = 0;
+
+        foreach ($employees as $employee) {
+            $email = get_array_value($employee, 'email');
+            if (!$email) {
+                continue; // Skip if no email
+            }
+
+            if ($this->Users_model->is_email_exists($email)) {
+                $skipped_count++;
+                continue;
+            }
+
+           // exit(get_array_value($employee, 'first_name'));
+
+            $user_data = array(
+                "first_name" => get_array_value($employee, 'first_name'),
+                "last_name" => get_array_value($employee, 'last_name'),
+                "email" => $email,
+                "password" => get_array_value($employee, 'password'),
+                "user_type" => "staff",
+                "role_id" => get_array_value($employee, 'user_role_id'),
+                "gender" => strtolower(get_array_value($employee, 'gender')),
+                "phone" => get_array_value($employee, 'contact_no'),
+                "address" => get_array_value($employee, 'address'),
+                "job_title" => get_array_value($employee, 'designation_name'),
+                "created_at" => get_current_utc_time()
+            );
+
+            $user_id = $this->Users_model->ci_save($user_data);
+
+            if ($user_id) {
+                $job_data = array(
+                    "user_id" => $user_id,
+                    "date_of_hire" => get_array_value($employee, 'date_of_joining'),
+                    "salary" => get_array_value($employee, 'salary'),
+                );
+                $this->Users_model->save_job_info($job_data);
+                $imported_count++;
+            }
+        }
+
+        echo json_encode(array("success" => true, 'message' => "$imported_count members imported. $skipped_count members already existed and were skipped."));
+    }
 }
+
 
 /* End of file Team_members.php */
 /* Location: ./app/Controllers/Team_members.php */

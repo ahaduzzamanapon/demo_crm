@@ -10,6 +10,7 @@
                 <?php
                 if ($login_user->is_admin || get_array_value($login_user->permissions, "can_add_or_invite_new_team_members")) {
                     echo modal_anchor(get_uri("team_members/import_modal_form"), "<i data-feather='upload' class='icon-16'></i> " . app_lang('import_team_members'), array("class" => "btn btn-default", "title" => app_lang('import_team_members')));
+                    echo anchor(get_uri("#"), "<i data-feather='download' class='icon-16'></i> " . app_lang('auto_import_from_smarthrm'), array("class" => "btn btn-default", "title" => app_lang('auto_import_from_smarthrm'), "id" => "import-from-smarthrm-button"));
                     echo modal_anchor(get_uri("team_members/invitation_modal"), "<i data-feather='mail' class='icon-16'></i> " . app_lang('send_invitation'), array("class" => "btn btn-default", "title" => app_lang('send_invitation')));
                     echo modal_anchor(get_uri("team_members/modal_form"), "<i data-feather='plus-circle' class='icon-16'></i> " . app_lang('add_team_member'), array("class" => "btn btn-default", "title" => app_lang('add_team_member')));
                 }
@@ -52,6 +53,29 @@
             printColumns: combineCustomFieldsColumns([1, 2, 3, 4], '<?php echo $custom_field_headers; ?>'),
             xlsColumns: combineCustomFieldsColumns([1, 2, 3, 4], '<?php echo $custom_field_headers; ?>')
 
+        });
+
+        $('#import-from-smarthrm-button').on('click', function(e) {
+            e.preventDefault();
+            appLoader.show();
+            $.ajax({
+                url: '<?php echo get_uri("team_members/import_from_smarthrm"); ?>',
+                type: 'POST',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        appAlert.success(response.message, {duration: 10000});
+                        location.reload();
+                    } else {
+                        appAlert.error(response.message);
+                    }
+                    appLoader.hide();
+                },
+                error: function() {
+                    appAlert.error('An unknown error occurred while importing members.');
+                    appLoader.hide();
+                }
+            });
         });
     });
 </script>    
