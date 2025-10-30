@@ -24,4 +24,6 @@ $lang["per_user_time_log_report"] = "Per User Time Log Report";
 $lang["datetime"] = "Date & Time";
 $lang["task_name"] = "Task Name";
 $lang["member"] = "Member";
+$lang["filter"] = "Filter";
+$lang["clear"] = "Clear";
 return $lang;
