@@ -1146,6 +1146,36 @@
                     </li>
                 <?php } ?>
 
+                <li>
+                    <span data-feather="key" class="icon-14 ml-20"></span>
+                    <h5><?php echo app_lang("can_access_custom_reports"); ?></h5>
+                    <div>
+                        <?php
+                        if (is_null($custom_reports)) {
+                            $custom_reports = "";
+                        }
+                        echo form_radio(array(
+                            "id" => "custom_reports_no",
+                            "name" => "custom_reports_permission",
+                            "value" => "",
+                            "class" => "form-check-input",
+                        ), $custom_reports, ($custom_reports === "") ? true : false);
+                        ?>
+                        <label for="custom_reports_no"><?php echo app_lang("no"); ?> </label>
+                    </div>
+                    <div>
+                        <?php
+                        echo form_radio(array(
+                            "id" => "custom_reports_yes",
+                            "name" => "custom_reports_permission",
+                            "value" => "all",
+                            "class" => "form-check-input",
+                        ), $custom_reports, ($custom_reports === "all") ? true : false);
+                        ?>
+                        <label for="custom_reports_yes"><?php echo app_lang("yes"); ?></label>
+                    </div>
+                </li>
+
 
                 <?php
                 try {

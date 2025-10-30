@@ -1401,6 +1401,15 @@ if (!function_exists("make_random_string")) {
         return $random_string;
     }
 }
+if (!function_exists("dd")) {
+
+    function dd($var) {
+        echo "<pre>";
+        print_r($var);
+        echo "</pre>";
+        exit();
+    }
+}
 
 //add custom variable data
 if (!function_exists("get_custom_variables_data")) {

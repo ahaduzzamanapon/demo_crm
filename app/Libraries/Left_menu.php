@@ -10,16 +10,27 @@ class Left_menu {
     private $ci = null;
 
     public function __construct() {
+       
         $this->ci = new Security_Controller(false);
     }
 
     private function _get_sidebar_menu_items($type = "") {
+       
         $dashboard_menu = array("name" => "dashboard", "url" => "dashboard", "class" => "monitor");
 
         $selected_dashboard_id = get_setting("user_" . $this->ci->login_user->id . "_dashboard");
         if ($selected_dashboard_id) {
             $dashboard_menu = array("name" => "dashboard", "url" => "dashboard/view/" . $selected_dashboard_id, "class" => "monitor", "custom_class" => "dashboard-menu");
         }
+
+
+
+
+
+
+
+
+
 
         if ($this->ci->login_user->user_type == "staff" && $type !== "client_default") {
 
@@ -228,6 +239,11 @@ class Left_menu {
                     "tickets/tickets_chart_report"
                 )
             );
+
+
+        
+
+          
 
             if ($this->ci->login_user->is_admin || get_array_value($this->ci->login_user->permissions, "can_manage_all_kinds_of_settings")) {
                 $sidebar_menu["settings"] = array(
