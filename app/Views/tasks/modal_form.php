@@ -148,6 +148,24 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <div class="row">
+                    <label for="estimated_time" class="col-md-3"><?php echo app_lang("estimated_time_in_hour"); ?></label>
+                    <div class="col-md-9">
+                        <?php
+                        echo form_input(array(
+                            "id" => "estimated_time",
+                            "name" => "estimated_time",
+                            "value" => isset($model_info->estimated_time) ? $model_info->estimated_time : '',
+                            "class" => "form-control",
+                            "placeholder" => app_lang('estimated_time_in_hour'),
+                            "type" => "number"
+                        ));
+                        ?>
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group" id="milestones-dropdown">
                 <div class="row">
                     <label for="milestone_id" class=" col-md-3"><?php echo app_lang('milestone'); ?></label>

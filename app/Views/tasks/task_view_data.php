@@ -70,6 +70,13 @@ if ($total_sub_tasks) {
                         <?php } ?>
                     </div>
 
+                    <?php if ($model_info->estimated_time) { ?>
+                        <div class="col-md-12 mb15">
+                            <strong><?php echo app_lang('estimated_time_in_hour') . ": "; ?></strong>
+                            <span><?php echo $model_info->estimated_time; ?></span>
+                        </div>
+                    <?php } ?>
+
                     <div class="col-md-12 mb15">
                         <strong><?php echo app_lang('priority') . ": "; ?></strong> <?php echo get_update_task_info_anchor_data($model_info, "priority", $can_edit_tasks); ?>
                     </div>

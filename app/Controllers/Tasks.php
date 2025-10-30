@@ -1073,6 +1073,7 @@ class Tasks extends Security_Controller {
             "project_id" => $project_id ? $project_id : 0,
             "milestone_id" => $milestone_id ? $milestone_id : 0,
             "points" => $this->request->getPost('points'),
+            "estimated_time" => $this->request->getPost('estimated_time'),
             "status_id" => $status_id,
             "client_id" => $client_id ? $client_id : 0,
             "lead_id" => $lead_id ? $lead_id : 0,

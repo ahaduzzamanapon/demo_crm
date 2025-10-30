@@ -84,6 +84,10 @@ class Tasks_model extends Crud_model {
                 "label" => app_lang("points"),
                 "type" => "int"
             ),
+            "estimated_time" => array(
+                "label" => app_lang("estimated_time_in_hour"),
+                "type" => "text"
+            ),
             "deleted" => array(
                 "label" => app_lang("deleted"),
                 "type" => "int"
