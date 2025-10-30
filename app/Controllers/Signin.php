@@ -10,6 +10,11 @@ class Signin extends App_Controller {
 
     function __construct() {
         parent::__construct();
+          header('Access-Control-Allow-Origin: *');
+        // Allow methods: GET, POST, OPTIONS
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        // Allow header Content-Type: application/json
+        header("Access-Control-Allow-Headers: Content-Type");
         $this->signin_validation_errors = array();
         helper('email');
     }
@@ -78,6 +83,49 @@ class Signin extends App_Controller {
         }
 
         if (!$this->Users_model->authenticate($email, $password)) {
+            //authentication failed
+            array_push($this->signin_validation_errors, app_lang("authentication_failed"));
+            $this->session->setFlashdata("signin_validation_errors", $this->signin_validation_errors);
+            app_redirect('signin');
+        }
+
+        //authentication success
+        $redirect = $this->request->getPost("redirect");
+        if ($redirect) {
+            $allowed_host = $_SERVER['HTTP_HOST'];
+
+            $parsed_redirect = parse_url($redirect);
+            $redirect_host = get_array_value($parsed_redirect, "host");
+            if ($allowed_host === $redirect_host) {
+                return redirect()->to($redirect);
+            } else {
+                app_redirect('dashboard/view');
+            }
+        } else {
+            app_redirect('dashboard/view');
+        }
+    }
+    function authenticate_new() {
+      
+    $email=$this->request->getPost("email");
+    $password=$this->request->getPost("password");
+        
+       
+
+        //check if there reCaptcha is enabled
+        //if reCaptcha is enabled, check the validation
+        if (get_setting("re_captcha_secret_key")) {
+            //in this function, if any error found in recaptcha, that will be added
+            $this->has_recaptcha_error();
+        }
+
+        //don't check password if there is any error
+        if ($this->signin_validation_errors) {
+            $this->session->setFlashdata("signin_validation_errors", $this->signin_validation_errors);
+            app_redirect('signin');
+        }
+
+        if (!$this->Users_model->authenticate_new($email, $password)) {
             //authentication failed
             array_push($this->signin_validation_errors, app_lang("authentication_failed"));
             $this->session->setFlashdata("signin_validation_errors", $this->signin_validation_errors);

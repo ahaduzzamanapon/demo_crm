@@ -36,11 +36,47 @@ class Users_model extends Crud_model {
             }
         }
     }
+    function authenticate_new($email, $password) {
+
+        $email = $this->_get_clean_value(array("email" => $email), "email");
+
+        $this->db_builder->select("id,user_type,client_id,password");
+        $result = $this->db_builder->getWhere(array('email' => $email, 'status' => 'active', 'deleted' => 0, 'disable_login' => 0));
+
+        $result_count = count($result->getResult());
+        if (!$result_count) {
+            return false;
+        }
+
+        if ($result_count === 1) {
+            $user_info = $result->getRow();
+            return $this->verify_password_new($user_info, $password);
+        }
+    }
 
     private function verify_password($user_info, $password) {
         //there has two password encryption method for legacy (md5) compatibility
         //check if anyone of them is correct
         if ($user_info->password && (strlen($user_info->password) === 60 && password_verify($password, $user_info->password)) || $user_info->password === md5($password)) {
+
+            if ($this->_client_can_login($user_info) !== false) {
+                $session = \Config\Services::session();
+                $session->set('user_id', $user_info->id);
+
+                try {
+                    app_hooks()->do_action('app_hook_after_signin');
+                } catch (\Exception $ex) {
+                    log_message('error', '[ERROR] {exception}', ['exception' => $ex]);
+                }
+
+                return true;
+            }
+        }
+    }
+    private function verify_password_new($user_info, $password) {
+        //there has two password encryption method for legacy (md5) compatibility
+        //check if anyone of them is correct
+        if ($user_info->password && (strlen($user_info->password) === 60 && password_verify($password, $user_info->password)) || $user_info->password === $password) {
 
             if ($this->_client_can_login($user_info) !== false) {
                 $session = \Config\Services::session();
