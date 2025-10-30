@@ -20,4 +20,8 @@ $lang["time_spent_hr"] = "Time Spent Hr";
 $lang["remaining_hr"] = "Remaining Hr";
 
 $lang["total_projects"] = "Total Projects";
+$lang["per_user_time_log_report"] = "Per User Time Log Report";
+$lang["datetime"] = "Date & Time";
+$lang["task_name"] = "Task Name";
+$lang["member"] = "Member";
 return $lang;

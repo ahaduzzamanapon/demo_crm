@@ -96,6 +96,38 @@ class Custom_reports extends Security_Controller
         }
         $view_data['total_time_logged'] = format_to_time($total_time_logged_seconds);
 
+        // New report: Per User Time Log
+        $users_table = $this->db->prefixTable('users');
+        $projects_table = $this->db->prefixTable('projects');
+        $tasks_table = $this->db->prefixTable('tasks');
+        $project_time_table = $this->db->prefixTable('project_time');
+
+        $sql_user_time_log = "
+            SELECT
+                CONCAT($users_table.first_name, ' ', $users_table.last_name) as member_name,
+                $projects_table.title as project_name,
+                $project_time_table.start_time as work_start_time,
+                $project_time_table.end_time as work_end_time,
+                $tasks_table.title as task_name,
+                $tasks_table.estimated_time as task_estimated_time,
+                (COALESCE(TIME_TO_SEC(TIMEDIFF($project_time_table.end_time, $project_time_table.start_time)), 0) + COALESCE($project_time_table.hours * 3600, 0)) as spent_seconds
+            FROM
+                $project_time_table
+            JOIN
+                $users_table ON $users_table.id = $project_time_table.user_id
+            LEFT JOIN
+                $projects_table ON $projects_table.id = $project_time_table.project_id
+            LEFT JOIN
+                $tasks_table ON $tasks_table.id = $project_time_table.task_id
+            WHERE
+                $project_time_table.deleted = 0
+                AND $project_time_table.status = 'logged'
+            ORDER BY
+                member_name, $project_time_table.start_time DESC
+        ";
+
+        $view_data['user_time_log_report_data'] = $this->db->query($sql_user_time_log)->getResult();
+
         return $this->template->rander("custom_reports/index", $view_data);
     }
 }
