@@ -17,11 +17,18 @@
     <div class="sidebar-scroll">
         <ul id="sidebar-menu" class="sidebar-menu">
             <?php
+               
             foreach ($sidebar_menu as $main_menu) {
                 $main_menu_name = get_array_value($main_menu, "name");
                 if (!$main_menu_name) {
                     continue;
                 }
+
+
+               
+
+                
+         
 
                 $is_custom_menu_item = get_array_value($main_menu, "is_custom_menu_item");
                 $open_in_new_tab = get_array_value($main_menu, "open_in_new_tab");
@@ -29,6 +36,8 @@
                 $class = get_array_value($main_menu, "class");
                 $custom_class = get_array_value($main_menu, "custom_class");
                 $submenu = get_array_value($main_menu, "submenu");
+
+                
 
                 $has_any_submenu = false;
                 if ($submenu && count($submenu)) {
@@ -65,10 +74,18 @@
                 $badge = get_array_value($main_menu, "badge");
                 $badge_class = get_array_value($main_menu, "badge_class");
                 $target = ($is_custom_menu_item && $open_in_new_tab) ? "target='_blank'" : "";
+
+                //  if ($main_menu_name == "custom_reports") {
+                //      echo "<pre>";
+                // var_dump($$is_custom_menu_item );
+                // echo "</pre>";
+                // exit();
+                // }
+
             ?>
 
                 <li class="<?php echo $active_class . " " . $expend_class . " " . $submenu_open_class . " "; ?> main">
-                    <a <?php echo $target; ?> href="<?php echo $is_custom_menu_item ? $url : get_uri($url); ?>">
+                    <a <?php echo $target; ?> href="<?php echo  get_uri($url); ?>">
                         <i data-feather="<?php echo $class; ?>" class="icon"></i>
                         <span class="menu-text <?php echo $custom_class; ?>"><?php echo $main_menu_name; ?></span>
                         <?php

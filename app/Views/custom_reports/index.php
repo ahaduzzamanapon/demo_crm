@@ -259,7 +259,11 @@
                                                 <td rowspan="<?php echo $rowCount; ?>"><?php echo $item->project_name; ?></td>
                                             <?php } ?>
 
-                                            <td><?php echo date('Y-m-d h:i A', strtotime($item->work_start_time)) . " to " . date('Y-m-d h:i A', strtotime($item->work_end_time)); ?>
+                                            <td>
+
+                                            <?php echo format_to_time($item->work_start_time) . " to " . format_to_time($item->work_end_time); ?>
+                                                
+                                            
                                             </td>
                                             <td><?php echo $item->task_name ? $item->task_name : "-"; ?></td>
                                             <td><?php echo round($estimated_hr, 2); ?></td>

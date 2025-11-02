@@ -25,18 +25,19 @@ class Left_menu {
 
 
 
-
-
-
-
-
-
-
+        
+        
+        
+        
+        
+        
+        
+        
         if ($this->ci->login_user->user_type == "staff" && $type !== "client_default") {
-
+            
             $permission_manager = new Permission_manager($this->ci);
             $sidebar_menu = array("dashboard" => $dashboard_menu);
-
+          
             $permissions = $this->ci->login_user->permissions;
 
             $access_expense = get_array_value($permissions, "expense");
@@ -62,6 +63,7 @@ class Left_menu {
                 $sidebar_menu["events"] = array("name" => "events", "url" => "events", "class" => "calendar");
             }
 
+          
 
             if ($this->ci->login_user->is_admin || $access_client) {
                 $sidebar_menu["clients"] = array("name" => "clients", "url" => "clients", "class" => "briefcase");
@@ -199,6 +201,7 @@ class Left_menu {
                 $sidebar_menu["tickets"] = array("name" => "tickets", "url" => "tickets", "class" => "life-buoy", "badge" => $ticket_badge, "badge_class" => "bg-primary");
             }
 
+
             $manage_help_and_knowledge_base = ($this->ci->login_user->is_admin || get_array_value($permissions, "help_and_knowledge_base"));
 
             if (get_setting("module_knowledge_base") == "1" && $manage_help_and_knowledge_base) {
@@ -240,7 +243,6 @@ class Left_menu {
                 )
             );
 
-
         
 
           
@@ -273,8 +275,9 @@ class Left_menu {
                     )
                 );
             }
+              
 
-            $sidebar_menu = app_hooks()->apply_filters('app_filter_staff_left_menu', $sidebar_menu);
+          
         } else {
             //client menu
 
@@ -349,6 +352,11 @@ class Left_menu {
 
             $sidebar_menu = app_hooks()->apply_filters('app_filter_client_left_menu', $sidebar_menu);
         }
+          $sidebar_menu = app_hooks()->apply_filters('app_filter_staff_left_menu', $sidebar_menu);
+            //   echo "<pre>";
+            // var_dump($this->position_items_for_default_left_menu($sidebar_menu));
+            // echo "</pre>";
+            // exit();
 
         return $this->position_items_for_default_left_menu($sidebar_menu);
     }
@@ -457,6 +465,7 @@ class Left_menu {
         $final_items_array = array();
         $items_array = $this->_get_sidebar_menu_items($type);
 
+
         foreach ($items_array as $item) {
             $main_menu_name = get_array_value($item, "name");
 
@@ -485,6 +494,9 @@ class Left_menu {
         //add todo
         $final_items_array["todo"] = array("name" => "todo", "url" => "todo", "class" => "check-square");
 
+        
+        
+
         return $final_items_array;
     }
 
@@ -492,6 +504,7 @@ class Left_menu {
         $user_left_menu = get_setting("user_" . $this->ci->login_user->id . "_left_menu");
         $default_left_menu = ($type == "client_default" || $this->ci->login_user->user_type == "client") ? get_setting("default_client_left_menu") : get_setting("default_left_menu");
         $custom_left_menu = "";
+
 
         //for preview, show the edit type preview
         if ($is_preview) {
@@ -592,8 +605,12 @@ class Left_menu {
     }
 
     function rander_left_menu($is_preview = false, $type = "default") {
+
+        
         $final_left_menu_items = array();
         $custom_left_menu_items = $this->_get_left_menu_from_setting_for_rander($is_preview, $type);
+     
+              
 
         if ($custom_left_menu_items) {
             $left_menu_items = $this->_prepare_sidebar_menu_items($type);
@@ -613,16 +630,20 @@ class Left_menu {
                 }
             }
         }
-
+        
         if (count($final_left_menu_items)) {
             $view_data["sidebar_menu"] = $final_left_menu_items;
         } else {
+     
             $view_data["sidebar_menu"] = $this->_get_sidebar_menu_items($type);
         }
 
         if (!$is_preview) {
             $view_data["sidebar_menu"] = $this->_get_active_menu($view_data["sidebar_menu"]);
         }
+
+
+    
 
         $view_data["is_preview"] = $is_preview;
         $view_data["login_user"] = $this->ci->login_user;

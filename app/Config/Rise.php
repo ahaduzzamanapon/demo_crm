@@ -10,7 +10,7 @@ class Rise extends BaseConfig {
 
     public $app_settings_array = array(
         "app_version" => "3.9.4",
-        "app_update_url" => 'https://releases.fairsketch.com/rise/',
+        "app_update_url" => 'https://releases.fairsketdfgdfgch.com/rise/',
         "updates_path" => './updates/',
     );
     public $app_csrf_exclude_uris = array(

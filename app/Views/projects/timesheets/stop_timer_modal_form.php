@@ -4,34 +4,42 @@
 
 <div class="modal-body clearfix">
     <div class="container-fluid">
-        <div class="form-group">
-            <label for="start_time" class=" col-md-12"><?php echo app_lang('start_time'); ?></label>
-            <div class=" col-md-12">
-                <?php
-                echo form_input(array(
-                    "id" => "start_time",
-                    "name" => "start_time",
-                    "class" => "form-control",
-                    "placeholder" => app_lang('start_time'),
-                    "autocomplete" => "off"
-                ));
-                ?>
+        <div class="row">
+
+            <div class="form-group col-md-4">
+                <label for="start_time" class=" col-md-12"><?php echo app_lang('start_time'); ?></label>
+                <div class=" col-md-12">
+                    <?php
+                    echo form_input(array(
+                        "id" => "start_time",
+                        "name" => "start_time",
+                        "class" => "form-control",
+                        'type' => 'time',
+    
+                        "placeholder" => app_lang('start_time'),
+                        "autocomplete" => "off"
+                    ));
+                    ?>
+                </div>
+            </div>
+            <div class="form-group col-md-4">
+                <label for="end_time" class=" col-md-12"><?php echo app_lang('end_time'); ?></label>
+                <div class=" col-md-12">
+                    <?php
+                    echo form_input(array(
+                        "id" => "end_time",
+                        "name" => "end_time",
+                        'type' => 'time',
+    
+                        "class" => "form-control",
+                        "placeholder" => app_lang('end_time'),
+                        "autocomplete" => "off"
+                    ));
+                    ?>
+                </div>
             </div>
         </div>
-        <div class="form-group">
-            <label for="end_time" class=" col-md-12"><?php echo app_lang('end_time'); ?></label>
-            <div class=" col-md-12">
-                <?php
-                echo form_input(array(
-                    "id" => "end_time",
-                    "name" => "end_time",
-                    "class" => "form-control",
-                    "placeholder" => app_lang('end_time'),
-                    "autocomplete" => "off"
-                ));
-                ?>
-            </div>
-        </div>
+
         <div class="form-group">
             <label for="note" class=" col-md-12"><?php echo app_lang('note'); ?></label>
             <div class=" col-md-12">
@@ -77,10 +85,11 @@
             }
         });
 
-        $('#start_time, #end_time').timepicker({
-            'timeFormat': 'H:i:s',
-            'showMeridian': false
-        });
+//         $('#start_time, #end_time').timepicker({
+//     'timeFormat': 'h:i A',
+//     'showMeridian': true
+// });
+
 
         $("#manual-timer-form .select2").select2();
         setTimeout(function () {
