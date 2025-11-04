@@ -1174,6 +1174,17 @@
                         ?>
                         <label for="custom_reports_yes"><?php echo app_lang("yes"); ?></label>
                     </div>
+                    <div>
+                        <?php
+                        echo form_radio(array(
+                            "id" => "custom_reports_own",
+                            "name" => "custom_reports_permission",
+                            "value" => "own",
+                            "class" => "form-check-input",
+                        ), $custom_reports, ($custom_reports === "own") ? true : false);
+                        ?>
+                        <label for="custom_reports_own"><?php echo app_lang("can_get_only_own_custom_report"); ?></label>
+                    </div>
                 </li>
 
 

@@ -26,5 +26,5 @@ $lang["task_name"] = "Task Name";
 $lang["member"] = "Member";
 $lang["filter"] = "Filter";
 $lang["clear"] = "Clear";
-$lang["auto_import_from_smarthrm"] = "Auto import from SmartHRM";
+$lang["can_get_only_own_custom_report"] = "Can access only own custom reports";
 return $lang;
