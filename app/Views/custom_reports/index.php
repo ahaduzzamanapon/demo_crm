@@ -135,6 +135,7 @@
                             cellspacing="0" width="100%">
                             <thead>
                                 <tr>
+                                    
                                     <th><?php echo app_lang('assignee'); ?></th>
                                     <th><?php echo app_lang('project'); ?></th>
                                     <th><?php echo app_lang('estimated_hr'); ?></th>
@@ -156,8 +157,10 @@
                                 foreach ($time_tracking_report_data as $item) {
                                     $estimated_hr = $item->total_estimated_hr ? $item->total_estimated_hr : 0;
                                     $spent_seconds = $item->total_spent_seconds ? $item->total_spent_seconds : 0;
-                                    $spent_hr = $spent_seconds / 3600;
-                                    $remaining_hr = $estimated_hr - $spent_hr;
+                                    $spent_hr = convert_seconds_to_time_format($spent_seconds);
+                                    $estimated_hr_s = $estimated_hr * 60 * 60;
+                                    $remaining_hr = $estimated_hr_s - $spent_seconds;
+                                     $remaining_hr = convert_seconds_to_time_format($remaining_hr);
                                     ?>
                                     <tr>
                                         <?php if ($current_assignee != $item->assignee_name) { ?>
@@ -167,9 +170,9 @@
                                             <?php $current_assignee = $item->assignee_name;
                                         } ?>
                                         <td><?php echo $item->project_name; ?></td>
-                                        <td><?php echo round($estimated_hr, 2); ?></td>
-                                        <td><?php echo round($spent_hr, 2); ?></td>
-                                        <td><?php echo round($remaining_hr, 2); ?></td>
+                                        <td><?php echo ($estimated_hr); ?></td>
+                                        <td><?php echo ($spent_hr); ?></td>
+                                        <td><?php echo ($remaining_hr); ?></td>
                                     </tr>
                                 <?php } ?>
                             </tbody>
@@ -249,8 +252,18 @@
 
                                         $estimated_hr = $item->task_estimated_time ? $item->task_estimated_time : 0;
                                         $spent_seconds = $item->spent_seconds ? $item->spent_seconds : 0;
-                                        $spent_hr = $spent_seconds / 3600;
-                                        $remaining_hr = $estimated_hr - $spent_hr;
+                                        $spent_hr = convert_seconds_to_time_format($spent_seconds);
+
+                                         $estimated_hr_s = $estimated_hr * 60 * 60;
+                                    $remaining_hr = $estimated_hr_s - $spent_seconds;
+                                     $remaining_hr = convert_seconds_to_time_format($remaining_hr);
+
+                                     if ($remaining_hr < 0) {
+                                        $remaining_hr =$remaining_hr.'&nbsp;(+)';
+                                    }
+
+
+
                                         ?>
                                         <tr>
                                             <?php if ($firstRow) { ?>
@@ -260,15 +273,12 @@
                                             <?php } ?>
 
                                             <td>
-
                                             <?php echo format_to_time($item->work_start_time) . " to " . format_to_time($item->work_end_time); ?>
-                                                
-                                            
                                             </td>
                                             <td><?php echo $item->task_name ? $item->task_name : "-"; ?></td>
-                                            <td><?php echo round($estimated_hr, 2); ?></td>
-                                            <td><?php echo round($spent_hr, 2); ?></td>
-                                            <td><?php echo round($remaining_hr, 2); ?></td>
+                                            <td><?php echo ($estimated_hr); ?></td>
+                                            <td><?php echo ($spent_hr); ?></td>
+                                            <td><?php echo ($remaining_hr); ?></td>
                                         </tr>
                                         <?php
                                         $firstRow = false;

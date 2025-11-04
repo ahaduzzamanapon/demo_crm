@@ -669,6 +669,16 @@ if (!function_exists('get_time_from_datetime')) {
  * 
  * @return string Relative time label (e.g., "5 min", "7 h", "10 d", "4 mo", "2 y")
  */
+
+
+
+
+
+
+
+
+
+
 if (!function_exists('format_since_then')) {
     function format_since_then($datetime, $short = true) {
         $current_time = strtotime(get_current_utc_time());
