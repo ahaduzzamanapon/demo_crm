@@ -9,6 +9,8 @@ class Custom_reports extends Security_Controller
     public function __construct()
     {
         parent::__construct();
+        helper(['form']);
+        parent::__construct();
         $this->taskStatusModel = model('App\Models\Task_status_model');
         $this->projectsModel   = model('App\Models\Projects_model');
         $this->Timesheets_model = model('App\Models\Timesheets_model');
@@ -21,10 +23,19 @@ class Custom_reports extends Security_Controller
         $project_id = $this->request->getGet('project_id');
         $member_id = $this->request->getGet('member_id');
         $task_id = $this->request->getGet('task_id');
+        $start_date = $this->request->getGet('start_date');
+        $end_date = $this->request->getGet('end_date');
+
+        if (!$start_date && !$end_date) {
+            $start_date = date('Y-m-01');
+            $end_date = date('Y-m-t');
+        }
         
         $view_data['project_id'] = $project_id;
         $view_data['member_id'] = $member_id;
         $view_data['task_id'] = $task_id;
+        $view_data['start_date'] = $start_date;
+        $view_data['end_date'] = $end_date;
 
         $projects = $this->projectsModel->get_all_where(array("deleted" => 0))->getResult();
         $projects_dropdown = array("" => "- " . app_lang('project') . " -");
@@ -85,6 +96,9 @@ class Custom_reports extends Security_Controller
         if ($task_id) {
             $tasks_join_where .= " AND $tasks_table.id = $task_id";
         }
+        if ($start_date && $end_date) {
+            $tasks_join_where .= " AND ($tasks_table.start_date BETWEEN '$start_date' AND '$end_date')";
+        }
 
         $sql_projects = "
             SELECT
@@ -126,6 +140,9 @@ class Custom_reports extends Security_Controller
         $spt_where = "WHERE deleted = 0 AND status = 'logged'";
         if ($task_id) {
             $spt_where .= " AND task_id = $task_id";
+        }
+        if ($start_date && $end_date) {
+            $spt_where .= " AND (DATE(start_time) BETWEEN '$start_date' AND '$end_date')";
         }
 
         $sql_time = "
@@ -176,6 +193,9 @@ class Custom_reports extends Security_Controller
         if ($task_id) {
             $total_time_logged_seconds_where .= " AND $project_time_table.task_id = $task_id";
         }
+        if ($start_date && $end_date) {
+            $total_time_logged_seconds_where .= " AND (DATE($project_time_table.start_time) BETWEEN '$start_date' AND '$end_date')";
+        }
 
         $sql_total_time = "
             SELECT (COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))), 0) + COALESCE(SUM(hours * 3600), 0)) as total_seconds
@@ -194,6 +214,9 @@ class Custom_reports extends Security_Controller
         }
         if ($task_id) {
             $user_time_log_where .= " AND $project_time_table.task_id = $task_id";
+        }
+        if ($start_date && $end_date) {
+            $user_time_log_where .= " AND (DATE($project_time_table.start_time) BETWEEN '$start_date' AND '$end_date')";
         }
 
         $sql_user_time_log = "

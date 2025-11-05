@@ -68,18 +68,15 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-3 d-flex gap-2" style="margin-top: 0;margin-bottom: 18px;">
-                                <button type="submit" class="btn btn-primary">
-                                    <i data-feather="filter" class="icon-16"></i> <?php echo app_lang('filter'); ?>
-                                </button>
-                                <a href="<?php echo get_uri('custom_reports'); ?>" class="btn btn-outline-danger">
-                                    <i data-feather="x" class="icon-16"></i> <?php echo app_lang('clear'); ?>
-                                </a>
-                                 <button id="print-report-button" class="btn btn-default"><i data-feather="printer" class="icon-16"></i>
-                    <?php echo app_lang('print'); ?></button>
-                            </div>
-
-                        </div>
+                                                    <div class="col-md-3">
+                                                        <input type="date" name="start_date" class="form-control" placeholder="<?php echo app_lang('start_date'); ?>" value="<?php echo $start_date; ?>" />
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <input type="date" name="end_date" class="form-control" placeholder="<?php echo app_lang('end_date'); ?>" value="<?php echo $end_date; ?>" />
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <button type="submit" class="btn btn-primary">Filter</button>
+                                                    </div>                        </div>
                     </form>
 
                 </div>
