@@ -133,10 +133,10 @@
                     <div class="table-responsive">
                         <table id="time-tracking-report-table" class="display table table-striped table-hover"
                             cellspacing="0" width="100%">
-                            <thead>
-                                <tr>
-                                    
-                                    <th><?php echo app_lang('assignee'); ?></th>
+                                                        <thead>
+                                                            <tr>
+                                                                <th><?php echo app_lang('sl'); ?></th>
+                                                                <th><?php echo app_lang('assignee'); ?></th>
                                     <th><?php echo app_lang('project'); ?></th>
                                     <th><?php echo app_lang('estimated_hr'); ?></th>
                                     <th><?php echo app_lang('time_spent_hr'); ?></th>
@@ -154,16 +154,18 @@
                                 }
 
                                 $current_assignee = "";
+                                $sl = 0;
                                 foreach ($time_tracking_report_data as $item) {
                                     $estimated_hr = $item->total_estimated_hr ? $item->total_estimated_hr : 0;
                                     $spent_seconds = $item->total_spent_seconds ? $item->total_spent_seconds : 0;
-                                    $spent_hr = convert_seconds_to_time_format($spent_seconds);
-                                    $estimated_hr_s = $estimated_hr * 60 * 60;
-                                    $remaining_hr = $estimated_hr_s - $spent_seconds;
-                                     $remaining_hr = convert_seconds_to_time_format($remaining_hr);
-                                    ?>
+                                    $spent_hr = $spent_seconds / 3600;
+                                    $remaining_hr = $estimated_hr - $spent_hr;
+                                ?>
                                     <tr>
-                                        <?php if ($current_assignee != $item->assignee_name) { ?>
+                                        <?php if ($current_assignee != $item->assignee_name) { 
+                                            $sl++;
+                                        ?>
+                                            <td rowspan="<?php echo $assignee_project_counts[$item->assignee_name]; ?>"><?php echo $sl; ?></td>
                                             <td rowspan="<?php echo $assignee_project_counts[$item->assignee_name]; ?>">
                                                 <?php echo $item->assignee_name; ?>
                                             </td>

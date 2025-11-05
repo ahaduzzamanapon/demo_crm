@@ -51,7 +51,7 @@ class Custom_reports extends Security_Controller
         }
         $view_data['tasks_dropdown'] = $tasks_dropdown;
 
-        $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports_permission");
+        $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports");
         
         if ($custom_reports_permission === "own") {
             $member_id = $this->login_user->id;
@@ -166,11 +166,24 @@ class Custom_reports extends Security_Controller
         }
         $view_data['total_tasks'] = $total_tasks;
 
-        $total_time_logged_seconds = 0;
-        foreach ($view_data['time_tracking_report_data'] as $item) {
-            $total_time_logged_seconds += $item->total_spent_seconds;
+        $total_time_logged_seconds_where = " WHERE $project_time_table.deleted = 0 AND $project_time_table.status = 'logged' ";
+        if ($member_id) {
+            $total_time_logged_seconds_where .= " AND $project_time_table.user_id = $member_id";
         }
-        $view_data['total_time_logged'] = format_to_time($total_time_logged_seconds);
+        if ($project_id) {
+            $total_time_logged_seconds_where .= " AND $project_time_table.project_id = $project_id";
+        }
+        if ($task_id) {
+            $total_time_logged_seconds_where .= " AND $project_time_table.task_id = $task_id";
+        }
+
+        $sql_total_time = "
+            SELECT (COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))), 0) + COALESCE(SUM(hours * 3600), 0)) as total_seconds
+            FROM $project_time_table
+            $total_time_logged_seconds_where
+        ";
+        $total_time_logged_result = $this->db->query($sql_total_time)->getRow();
+        $view_data['total_time_logged'] = format_to_time($total_time_logged_result->total_seconds);
 
         $user_time_log_where = "";
         if ($project_id) {
