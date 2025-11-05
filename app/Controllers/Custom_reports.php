@@ -247,6 +247,65 @@ class Custom_reports extends Security_Controller
 
         $view_data['user_time_log_report_data'] = $this->db->query($sql_user_time_log)->getResult();
 
+        // Resource Utilization Report
+        $users = $this->Users_model->get_all_where(array("user_type" => "staff", "deleted" => 0, "status" => "active"))->getResult();
+        $resource_utilization_data = [];
+
+        $start = new \DateTime($start_date);
+        $end = new \DateTime($end_date);
+        $end->modify('+1 day');
+        $interval = new \DateInterval('P1D');
+        $date_range = new \DatePeriod($start, $interval, $end);
+
+        $working_days = 0;
+        foreach ($date_range as $date) {
+            $day_of_week = $date->format('N');
+            if ($day_of_week < 6) { // Monday to Friday
+                $working_days++;
+            }
+        }
+
+        foreach ($users as $user) {
+            $user_id = $user->id;
+
+            // Get leave
+            $leave_table = $this->db->prefixTable('leave_applications');
+            $sql_leave = "SELECT SUM(DATEDIFF(end_date, start_date) + 1) as total_leave FROM $leave_table WHERE applicant_id = $user_id AND status = 'approved' AND ((start_date BETWEEN '$start_date' AND '$end_date') OR (end_date BETWEEN '$start_date' AND '$end_date'))";
+            $leave_result = $this->db->query($sql_leave)->getRow();
+            $total_leave = $leave_result->total_leave ? $leave_result->total_leave : 0;
+
+            // Get time logs
+            $sql_time_logs = "SELECT DATE(start_time) as log_date, SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))) as seconds FROM $project_time_table WHERE user_id = $user_id AND status = 'logged' AND (DATE(start_time) BETWEEN '$start_date' AND '$end_date') GROUP BY DATE(start_time)";
+            $time_logs_result = $this->db->query($sql_time_logs)->getResult();
+            
+            $daily_logs = [];
+            $total_seconds_worked = 0;
+            foreach($time_logs_result as $log) {
+                $daily_logs[$log->log_date] = $log->seconds / 3600;
+                $total_seconds_worked += $log->seconds;
+            }
+
+            $availability = $working_days - $total_leave;
+            $utilization = $total_seconds_worked / 3600;
+            $utilization_rate = $availability > 0 ? ($utilization / ($availability * 8)) * 100 : 0;
+            $capacity_loss = $working_days > 0 ? ($total_leave / $working_days) * 100 : 0;
+
+            $resource_utilization_data[] = [
+                'user_name' => $user->first_name . ' ' . $user->last_name,
+                'designation' => $user->job_title,
+                'total_leave' => $total_leave,
+                'availability' => $availability,
+                'utilization' => round($utilization, 2),
+                'utilization_rate' => round($utilization_rate, 2),
+                'capacity_loss' => round($capacity_loss, 2),
+                'daily_logs' => $daily_logs
+            ];
+        }
+
+        $view_data['resource_utilization_data'] = $resource_utilization_data;
+        $view_data['date_range'] = $date_range;
+
+
         return $this->template->rander("custom_reports/index", $view_data);
     }
 }

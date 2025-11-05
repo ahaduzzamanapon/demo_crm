@@ -108,6 +108,7 @@
                 <li class="nav-item"><a class="nav-link" href="#user-time-log-report" data-bs-toggle="tab"><i
                             data-feather="user" class="icon-16"></i>
                         <?php echo app_lang('per_user_time_log_report'); ?></a></li>
+                <li class="nav-item"><a class="nav-link" href="#resource-utilization-report" data-bs-toggle="tab"><i data-feather="pie-chart" class="icon-16"></i> <?php echo app_lang('resource_utilization_report'); ?></a></li>
             </ul>
             <div class="tab-content">
                 <div role="tabpanel" class="tab-pane fade show active" id="project-report">
@@ -185,9 +186,9 @@
                                             <?php $current_assignee = $item->assignee_name;
                                         } ?>
                                         <td><?php echo $item->project_name; ?></td>
-                                        <td><?php echo ($estimated_hr); ?></td>
-                                        <td><?php echo ($spent_hr); ?></td>
-                                        <td><?php echo ($remaining_hr); ?></td>
+                                        <td><?php echo number_format($estimated_hr, 2); ?></td>
+                                        <td><?php echo number_format($spent_hr, 2); ?></td>
+                                        <td><?php echo number_format($remaining_hr, 2); ?></td>
                                     </tr>
                                 <?php } ?>
                             </tbody>
@@ -304,6 +305,47 @@
                         </table>
 
 
+                    </div>
+                </div>
+                <div role="tabpanel" class="tab-pane fade" id="resource-utilization-report">
+                    <div class="table-responsive">
+                        <table id="resource-utilization-report-table" class="display table table-striped table-hover" cellspacing="0" width="100%">
+                            <thead>
+                                <tr>
+                                    <th><?php echo app_lang('resource'); ?></th>
+                                    <th><?php echo app_lang('designation'); ?></th>
+                                     <?php foreach ($date_range as $date) { ?>
+                                        <th><?php echo $date->format("d M"); ?></th>
+                                    <?php } ?>
+                                    <th><?php echo app_lang('leave'); ?></th>
+                                    <th><?php echo app_lang('availability'); ?></th>
+                                    <th><?php echo app_lang('utilization'); ?></th>
+                                    <th><?php echo app_lang('utilization_rate'); ?> (%)</th>
+                                    <th><?php echo app_lang('capacity_loss'); ?> (%)</th>
+                                   
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($resource_utilization_data as $data) { ?>
+                                    <tr>
+                                        <td><?php echo $data['user_name']; ?></td>
+                                        <td><?php echo $data['designation']; ?></td>
+                                         <?php foreach ($date_range as $date) { 
+                                            $log_date = $date->format('Y-m-d');
+                                            $hours_worked = isset($data['daily_logs'][$log_date]) ? $data['daily_logs'][$log_date] : 0;
+                                        ?>
+                                            <td><?php echo round($hours_worked, 2); ?></td>
+                                        <?php } ?>
+                                        <td><?php echo $data['total_leave']; ?></td>
+                                        <td><?php echo $data['availability']; ?></td>
+                                        <td><?php echo $data['utilization']; ?></td>
+                                        <td><?php echo $data['utilization_rate']; ?></td>
+                                        <td><?php echo $data['capacity_loss']; ?></td>
+                                       
+                                    </tr>
+                                <?php } ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
