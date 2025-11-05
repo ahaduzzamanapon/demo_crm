@@ -1,5 +1,5 @@
 <div id="page-content" class="page-wrapper clearfix">
-   
+
 
     <div class="card">
         <div class="page-title clearfix">
@@ -33,56 +33,71 @@
                 </div>
             </div>
 
-             <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <form id="reports-filter-form" method="get" action="<?php echo get_uri('custom_reports'); ?>">
-                        <div class="row g-3 align-items-end">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <form id="reports-filter-form" method="get"
+                                action="<?php echo get_uri('custom_reports'); ?>">
+                                <div class="row g-3 align-items-end">
 
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="project_id"
-                                        class="form-label"><?php echo app_lang('project'); ?></label>
-                                    <?php
-                                    echo form_dropdown("project_id", $projects_dropdown, $project_id, "class='form-control select2' id='project_id'");
-                                    ?>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label for="project_id"
+                                                class="form-label"><?php echo app_lang('project'); ?></label>
+                                            <?php
+                                            echo form_dropdown("project_id", $projects_dropdown, $project_id, "class='form-control select2' id='project_id'");
+                                            ?>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label for="member_id"
+                                                class="form-label"><?php echo app_lang('member'); ?></label>
+                                            <?php
+                                            echo form_dropdown("member_id", $members_dropdown, $member_id, "class='form-control select2' id='member_id'");
+                                            ?>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label for="task_id"
+                                                class="form-label"><?php echo app_lang('task'); ?></label>
+                                            <?php
+                                            echo form_dropdown("task_id", $tasks_dropdown, $task_id, "class='form-control select2' id='task_id'");
+                                            ?>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="member_id" class="form-label"><?php echo app_lang('member'); ?></label>
-                                    <?php
-                                    echo form_dropdown("member_id", $members_dropdown, $member_id, "class='form-control select2' id='member_id'");
-                                    ?>
+                                <div class="row g-3 align-items-end">
+
+                                    <div class="col-md-3">
+                                        <input type="date" name="start_date" class="form-control"
+                                            placeholder="<?php echo app_lang('start_date'); ?>"
+                                            value="<?php echo $start_date; ?>" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="date" name="end_date" class="form-control"
+                                            placeholder="<?php echo app_lang('end_date'); ?>"
+                                            value="<?php echo $end_date; ?>" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" class="btn btn-primary">Filter</button>
+                                            <?php echo anchor(get_uri("custom_reports"), "<i data-feather='x' class='icon-16'></i> " . app_lang('clear'), array("class" => "btn btn-default")); ?>
+                                            <button type="button" class="btn btn-default" onclick="printReport()"> <i data-feather="printer" class="icon-16"></i> <?php echo app_lang('print'); ?></button>
+                                        </div>
+                                    </div>                                
                                 </div>
-                            </div>
+                            </form>
 
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="task_id" class="form-label"><?php echo app_lang('task'); ?></label>
-                                    <?php
-                                    echo form_dropdown("task_id", $tasks_dropdown, $task_id, "class='form-control select2' id='task_id'");
-                                    ?>
-                                </div>
-                            </div>
-
-                                                    <div class="col-md-3">
-                                                        <input type="date" name="start_date" class="form-control" placeholder="<?php echo app_lang('start_date'); ?>" value="<?php echo $start_date; ?>" />
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <input type="date" name="end_date" class="form-control" placeholder="<?php echo app_lang('end_date'); ?>" value="<?php echo $end_date; ?>" />
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <button type="submit" class="btn btn-primary">Filter</button>
-                                                    </div>                        </div>
-                    </form>
-
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
             <ul class="nav nav-tabs" role="tablist">
                 <li class="nav-item"><a class="nav-link active" href="#project-report" data-bs-toggle="tab"><i
@@ -130,10 +145,10 @@
                     <div class="table-responsive">
                         <table id="time-tracking-report-table" class="display table table-striped table-hover"
                             cellspacing="0" width="100%">
-                                                        <thead>
-                                                            <tr>
-                                                                <th><?php echo app_lang('sl'); ?></th>
-                                                                <th><?php echo app_lang('assignee'); ?></th>
+                            <thead>
+                                <tr>
+                                    <th><?php echo app_lang('sl'); ?></th>
+                                    <th><?php echo app_lang('assignee'); ?></th>
                                     <th><?php echo app_lang('project'); ?></th>
                                     <th><?php echo app_lang('estimated_hr'); ?></th>
                                     <th><?php echo app_lang('time_spent_hr'); ?></th>
@@ -157,12 +172,13 @@
                                     $spent_seconds = $item->total_spent_seconds ? $item->total_spent_seconds : 0;
                                     $spent_hr = $spent_seconds / 3600;
                                     $remaining_hr = $estimated_hr - $spent_hr;
-                                ?>
+                                    ?>
                                     <tr>
-                                        <?php if ($current_assignee != $item->assignee_name) { 
+                                        <?php if ($current_assignee != $item->assignee_name) {
                                             $sl++;
-                                        ?>
-                                            <td rowspan="<?php echo $assignee_project_counts[$item->assignee_name]; ?>"><?php echo $sl; ?></td>
+                                            ?>
+                                            <td rowspan="<?php echo $assignee_project_counts[$item->assignee_name]; ?>">
+                                                <?php echo $sl; ?></td>
                                             <td rowspan="<?php echo $assignee_project_counts[$item->assignee_name]; ?>">
                                                 <?php echo $item->assignee_name; ?>
                                             </td>
@@ -253,13 +269,13 @@
                                         $spent_seconds = $item->spent_seconds ? $item->spent_seconds : 0;
                                         $spent_hr = convert_seconds_to_time_format($spent_seconds);
 
-                                         $estimated_hr_s = $estimated_hr * 60 * 60;
-                                    $remaining_hr = $estimated_hr_s - $spent_seconds;
-                                     $remaining_hr = convert_seconds_to_time_format($remaining_hr);
+                                        $estimated_hr_s = $estimated_hr * 60 * 60;
+                                        $remaining_hr = $estimated_hr_s - $spent_seconds;
+                                        $remaining_hr = convert_seconds_to_time_format($remaining_hr);
 
-                                     if ($remaining_hr < 0) {
-                                        $remaining_hr =$remaining_hr.'&nbsp;(+)';
-                                    }
+                                        if ($remaining_hr < 0) {
+                                            $remaining_hr = $remaining_hr . '&nbsp;(+)';
+                                        }
 
 
 
@@ -272,7 +288,7 @@
                                             <?php } ?>
 
                                             <td>
-                                            <?php echo format_to_time($item->work_start_time) . " to " . format_to_time($item->work_end_time); ?>
+                                                <?php echo format_to_time($item->work_start_time) . " to " . format_to_time($item->work_end_time); ?>
                                             </td>
                                             <td><?php echo $item->task_name ? $item->task_name : "-"; ?></td>
                                             <td><?php echo ($estimated_hr); ?></td>
@@ -296,37 +312,15 @@
 </div>
 <script type="text/javascript">
     $(document).ready(function () {
-        $('#print-report-button').on('click', function () {
-            var activeTabPaneId = $('.nav-tabs .nav-link.active').attr('href');
-            var reportTitle = $('.nav-tabs .nav-link.active').text().trim();
-            var $tableToPrint = $(activeTabPaneId).find('table');
-
-            var newWin = window.open('', 'Print-Window', 'height=600,width=800');
-
-            if (!newWin || newWin.closed || typeof newWin.closed == 'undefined') {
-                alert('Popup blocker is enabled. Please allow popups for this site to print the report.');
-                return;
-            }
-
-            var document_html = '<html><head><title>' + reportTitle + '</title>';
-            document_html += '<style>body { font-family: sans-serif; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; } </style>';
-            document_html += '</head><body><h1>' + reportTitle + '</h1>';
-            document_html += $tableToPrint[0].outerHTML;
-            document_html += '</body></html>';
-
-            newWin.document.open();
-            newWin.document.write(document_html);
-            newWin.document.close();
-
-            setTimeout(function () {
-                newWin.focus();
-                newWin.print();
-                newWin.close();
-            }, 250);
-        });
-
-        $('.select2').select2();
-
-        // $('#project-report-table, #time-tracking-report-table, #user-time-log-report-table').DataTable();
+        $("#project-table").appTable({source: 'data/projects.json'});
     });
+
+    function printReport() {
+        var reportContainer = document.querySelector('.tab-pane.fade.active.show').innerHTML;
+        var originalContent = document.body.innerHTML;
+        document.body.innerHTML = reportContainer;
+        window.print();
+        document.body.innerHTML = originalContent;
+    }
 </script>
+

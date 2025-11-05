@@ -20,6 +20,7 @@ class Custom_reports extends Security_Controller
     }
 
     public function index() {
+
         $project_id = $this->request->getGet('project_id');
         $member_id = $this->request->getGet('member_id');
         $task_id = $this->request->getGet('task_id');
