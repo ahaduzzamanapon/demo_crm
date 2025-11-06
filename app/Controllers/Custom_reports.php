@@ -38,7 +38,17 @@ class Custom_reports extends Security_Controller
         $view_data['start_date'] = $start_date;
         $view_data['end_date'] = $end_date;
 
-        $projects = $this->projectsModel->get_all_where(array("deleted" => 0))->getResult();
+        $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports");
+
+        if ($custom_reports_permission === "own") {
+            $member_id = $this->login_user->id;
+        }
+
+        $projects_where = array("deleted" => 0);
+        if ($custom_reports_permission === "own") {
+            $projects_where["user_id"] = $member_id;
+        }
+        $projects = $this->projectsModel->get_details($projects_where)->getResult();
         $projects_dropdown = array("" => "- " . app_lang('project') . " -");
         foreach ($projects as $project) {
             $projects_dropdown[$project->id] = $project->title;
@@ -248,7 +258,11 @@ class Custom_reports extends Security_Controller
         $view_data['user_time_log_report_data'] = $this->db->query($sql_user_time_log)->getResult();
 
         // Resource Utilization Report
-        $users = $this->Users_model->get_all_where(array("user_type" => "staff", "deleted" => 0, "status" => "active"))->getResult();
+        $users_where = array("user_type" => "staff", "deleted" => 0, "status" => "active");
+        if ($member_id) {
+            $users_where["id"] = $member_id;
+        }
+        $users = $this->Users_model->get_all_where($users_where)->getResult();
         $resource_utilization_data = [];
 
         $start = new \DateTime($start_date);
