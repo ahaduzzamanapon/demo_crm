@@ -159,6 +159,7 @@
                             "value" => isset($model_info->estimated_time) ? $model_info->estimated_time : '',
                             "class" => "form-control",
                             "placeholder" => app_lang('estimated_time_in_hour'),
+                            "data-rule-required" => true,
                             "type" => "number"
                         ));
                         ?>
