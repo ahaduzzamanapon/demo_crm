@@ -1944,9 +1944,8 @@ class Projects extends Security_Controller {
         $options = modal_anchor(get_uri("projects/timelog_modal_form"), "<i data-feather='edit' class='icon-16'></i>", array("class" => "edit", "title" => app_lang('edit_timelog'), "data-post-id" => $data->id))
             . js_anchor("<i data-feather='x' class='icon-16'></i>", array('title' => app_lang('delete_timelog'), "class" => "delete", "data-id" => $data->id, "data-action-url" => get_uri("projects/delete_timelog"), "data-action" => "delete"));
 
-        $timesheet_manage_permission = get_array_value($this->login_user->permissions, "timesheet_manage_permission");
-        if ($data->user_id === $this->login_user->id && ($timesheet_manage_permission === "own_project_members_excluding_own" || $timesheet_manage_permission === "specific_excluding_own")) {
-            $options = "";
+        if ($this->login_user->is_admin || $data->user_id == $this->login_user->id) {
+            $options .= js_anchor("<i data-feather='x' class='icon-16'></i>", array('title' => app_lang('delete_timelog'), "class" => "delete", "data-id" => $data->id, "data-action-url" => get_uri("projects/delete_timelog"), "data-action" => "delete-confirmation"));
         }
 
         $row_data[] = $options;
@@ -3596,6 +3595,9 @@ class Projects extends Security_Controller {
             //client can view all timesheet
             $options["allowed_members"] = $members;
         }
+
+        $view_data['member_id'] = $this->login_user->id;
+        $view_data['is_admin'] = $this->login_user->is_admin;
 
         $view_data['task_timesheet'] = $this->Timesheets_model->get_details($options)->getResult();
         return $this->template->view("tasks/task_timesheet", $view_data);

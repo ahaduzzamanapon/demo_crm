@@ -1,5 +1,5 @@
 <?php foreach ($task_timesheet as $timesheet) { ?>
-    <div class="d-flex mt15 mb15">
+    <div id="timesheet-row-<?php echo $timesheet->id; ?>" class="d-flex mt15 mb15">
         <div class="flex-shrink-0">
             <span class="avatar avatar-xs">
                 <img src="<?php echo get_avatar($timesheet->logged_by_avatar); ?>" alt="..." />
@@ -14,6 +14,9 @@
             </div>
             <div class="float-end">
                 <strong><?php echo convert_seconds_to_time_format($timesheet->hours ? (round(($timesheet->hours * 60), 0) * 60) : abs(strtotime($timesheet->end_time) - strtotime($timesheet->start_time))) ?></strong>
+                <?php if ($is_admin || $timesheet->user_id == $member_id) { ?>
+                    <?php echo js_anchor("<i data-feather='x' class='icon-16'></i>", array('title' => app_lang('delete_timelog'), "class" => "delete", "data-id" => $timesheet->id, "data-action-url" => get_uri("projects/delete_timelog"), "data-action" => "delete-confirmation", "data-fade-out-on-success" => "#timesheet-row-" . $timesheet->id)); ?>
+                <?php } ?>
             </div>
         </div>
     </div>
