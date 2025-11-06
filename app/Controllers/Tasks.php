@@ -1990,6 +1990,31 @@ class Tasks extends Security_Controller {
         echo json_encode(array("success" => true));
     }
 
+    function get_remaining_time_for_sub_task() {
+        $parent_task_id = $this->request->getPost('parent_task_id');
+        $current_task_id = $this->request->getPost('current_task_id');
+
+        $parent_task_info = $this->Tasks_model->get_one($parent_task_id);
+
+        if (!$parent_task_info->estimated_time || $parent_task_info->estimated_time == 0) {
+            echo json_encode(array("success" => true, "remaining_time" => "unlimited"));
+            return;
+        }
+
+        $sub_tasks = $this->Tasks_model->get_all_where(array("parent_task_id" => $parent_task_id, "deleted" => 0))->getResult();
+
+        $sub_tasks_total_estimated_time = 0;
+        foreach ($sub_tasks as $sub_task) {
+            if ($sub_task->id != $current_task_id) {
+                $sub_tasks_total_estimated_time += $sub_task->estimated_time;
+            }
+        }
+
+        $remaining_time = $parent_task_info->estimated_time - $sub_tasks_total_estimated_time;
+
+        echo json_encode(array("success" => true, "remaining_time" => $remaining_time));
+    }
+
     /* checklist */
 
     function save_checklist_item() {

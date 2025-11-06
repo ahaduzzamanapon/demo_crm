@@ -163,6 +163,24 @@
                             "type" => "number"
                         ));
                         ?>
+                        <div id="remaining-time-container" class="mt-2 text-info" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="row">
+                    <label for="parent_task_id" class=" col-md-3"><?php echo app_lang('parent_task'); ?></label>
+                    <div class="col-md-9">
+                        <?php
+                        echo form_input(array(
+                            "id" => "parent_task_id",
+                            "name" => "parent_task_id",
+                            "value" => $model_info->parent_task_id,
+                            "class" => "form-control",
+                            "placeholder" => app_lang('parent_task')
+                        ));
+                        ?>
                     </div>
                 </div>
             </div>
@@ -628,6 +646,53 @@
             startDate: dynamicDates.tomorrow //set min date = tomorrow
         });
 
+        var parent_task_id = $('#parent_task_id').val();
+        if(parent_task_id){
+            checkRemainingTime(parent_task_id);
+        }
+
+        $('#parent_task_id').on('change', function(){
+            var parent_task_id = $(this).val();
+            if(parent_task_id){
+                checkRemainingTime(parent_task_id);
+            } else {
+                $('#remaining-time-container').hide();
+            }
+        });
+
+        function checkRemainingTime(parent_task_id){
+            $.ajax({
+                url: '<?php echo get_uri("tasks/get_remaining_time_for_sub_task"); ?>',
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    parent_task_id: parent_task_id,
+                    current_task_id: '<?php echo $model_info->id; ?>'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        if (response.remaining_time === "unlimited") {
+                            $('#remaining-time-container').hide();
+                            $('#estimated_time').removeAttr('max');
+                        } else {
+                            var remaining_time = response.remaining_time;
+                            $('#remaining-time-container').html('Remaining time from parent: ' + remaining_time + ' hours').show();
+                            $('#estimated_time').attr('max', remaining_time);
+                        }
+                    }
+                }
+            });
+        }
+
+        $('#estimated_time').on('keyup', function(){
+            var estimated_time = $(this).val();
+            var max_time = $(this).attr('max');
+            if (typeof max_time !== 'undefined' && max_time !== false) {
+                if(parseInt(estimated_time) > parseInt(max_time)){
+                    $(this).val(max_time);
+                }
+            }
+        });
 
     });
 </script>
