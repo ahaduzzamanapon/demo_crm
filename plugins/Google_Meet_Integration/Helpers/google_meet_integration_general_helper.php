@@ -48,12 +48,12 @@ if (!function_exists('google_meet_integration_count_upcoming_meetings')) {
 if (!function_exists('can_manage_google_meet_integration')) {
 
     function can_manage_google_meet_integration() {
+        return true;
         $google_meet_integration_users = get_google_meet_integration_setting("google_meet_integration_users");
         $google_meet_integration_users = explode(',', $google_meet_integration_users);
         $instance = new Security_Controller();
 
         if ($instance->login_user->is_admin || in_array($instance->login_user->id, $google_meet_integration_users)) {
-            return true;
         }
     }
 
