@@ -46,7 +46,7 @@
                                             <label for="project_id"
                                                 class="form-label"><?php echo app_lang('project'); ?></label>
                                             <?php
-                                            echo form_dropdown("project_id", $projects_dropdown, $project_id, "class='form-control select2' id='project_id'");
+                                            echo form_dropdown("project_id", $projects_dropdown, $project_id, "class='select2 form-control select2' id='project_id'");
                                             ?>
                                         </div>
                                     </div>
@@ -56,7 +56,7 @@
                                             <label for="member_id"
                                                 class="form-label"><?php echo app_lang('member'); ?></label>
                                             <?php
-                                            echo form_dropdown("member_id", $members_dropdown, $member_id, "class='form-control select2' id='member_id'");
+                                            echo form_dropdown("member_id", $members_dropdown, $member_id, "class='select2 form-control select2' id='member_id'");
                                             ?>
                                         </div>
                                     </div>
@@ -66,7 +66,7 @@
                                             <label for="task_id"
                                                 class="form-label"><?php echo app_lang('task'); ?></label>
                                             <?php
-                                            echo form_dropdown("task_id", $tasks_dropdown, $task_id, "class='form-control select2' id='task_id'");
+                                            echo form_dropdown("task_id", $tasks_dropdown, $task_id, "class='select2 form-control select2' id='task_id'");
                                             ?>
                                         </div>
                                     </div>
@@ -241,68 +241,132 @@
                         }
                         ?>
 
-                        <table id="user-time-log-report-table" class="table table-striped table-hover" cellspacing="0"
-                            width="100%">
-                            <thead>
-                                <tr>
-                                    <th><?php echo app_lang('sl'); ?></th>
-                                    <th><?php echo app_lang('member'); ?></th>
-                                    <th><?php echo app_lang('project'); ?></th>
-                                    <th><?php echo app_lang('datetime'); ?></th>
-                                    <th><?php echo app_lang('task_name'); ?></th>
-                                    <th><?php echo app_lang('estimated_hr'); ?></th>
-                                    <th><?php echo app_lang('time_spent_hr'); ?></th>
-                                    <th><?php echo app_lang('remaining_hr'); ?></th>
-                                </tr>
-                            </thead>
+<table id="user-time-log-report-table" class="table table-striped table-hover" cellspacing="0" width="100%">
+    <thead>
+        <tr>
+            <th><?php echo app_lang('sl'); ?></th>
+            <th><?php echo app_lang('member'); ?></th>
+            <th><?php echo app_lang('project'); ?></th>
+            <th><?php echo app_lang('datetime'); ?></th>
+            <th><?php echo app_lang('task_name'); ?></th>
+            <th><?php echo app_lang('estimated_hr'); ?></th>
+            <th><?php echo app_lang('time_spent_hr'); ?></th>
+            <th><?php echo app_lang('remaining_hr'); ?></th>
+        </tr>
+    </thead>
 
-                            <tbody>
-                                <?php
-                                $sl = 1;
-                                foreach ($groupedData as $groupKey => $items) {
+    <tbody>
+        <?php
+        $sl = 1;
 
-                                    $rowCount = count($items); // for rowspan
-                                    $firstRow = true;
+        foreach ($groupedData as $groupKey => $items) {
 
-                                    foreach ($items as $item) {
+            // Group time spent by task
+            $taskSummary = [];
+            $userTotals = [
+                'estimated_hr_s' => 0,
+                'spent_seconds' => 0,
+                'remaining_seconds' => 0
+            ];
 
-                                        $estimated_hr = $item->task_estimated_time ? $item->task_estimated_time : 0;
-                                        $spent_seconds = $item->spent_seconds ? $item->spent_seconds : 0;
-                                        $spent_hr = convert_seconds_to_time_format($spent_seconds);
+            foreach ($items as $item) {
+                $task_name = $item->task_name ?: '-';
+                $estimated_hr = $item->task_estimated_time ? $item->task_estimated_time : 0;
+                $spent_seconds = $item->spent_seconds ? $item->spent_seconds : 0;
 
-                                        $estimated_hr_s = $estimated_hr * 60 * 60;
-                                        $remaining_hr = $estimated_hr_s - $spent_seconds;
-                                        $remaining_hr = convert_seconds_to_time_format($remaining_hr);
+                if (!isset($taskSummary[$task_name])) {
+                    $taskSummary[$task_name] = [
+                        'member_name' => $item->member_name,
+                        'project_name' => $item->project_name,
+                        'estimated_hr' => $estimated_hr,
+                        'total_spent_seconds' => 0,
+                        'logs' => []
+                    ];
+                }
 
-                                        if ($remaining_hr < 0) {
-                                            $remaining_hr = $remaining_hr . '&nbsp;(+)';
-                                        }
+                // Accumulate spent time
+                $taskSummary[$task_name]['total_spent_seconds'] += $spent_seconds;
+
+                // Keep logs for display
+                $taskSummary[$task_name]['logs'][] = [
+                    'datetime' => format_to_datetime($item->work_start_time) . " to " . format_to_datetime($item->work_end_time),
+                    'spent_seconds' => $spent_seconds
+                ];
+            }
+
+            // Calculate total rows for this user (for rowspan)
+            $memberRowCount = 0;
+            foreach ($taskSummary as $task) {
+                $memberRowCount += count($task['logs']);
+            }
+
+            $printedMember = false;
+
+            // Output each task
+            foreach ($taskSummary as $task_name => $task) {
+                $estimated_hr_s = $task['estimated_hr'] * 3600;
+                $remaining_seconds = $estimated_hr_s - $task['total_spent_seconds'];
+
+                // Add to per-user totals
+                $userTotals['estimated_hr_s'] += $estimated_hr_s;
+                $userTotals['spent_seconds'] += $task['total_spent_seconds'];
+                $userTotals['remaining_seconds'] += $remaining_seconds;
+
+                $remaining_hr = convert_seconds_to_time_format($remaining_seconds);
+                $spent_hr = convert_seconds_to_time_format($task['total_spent_seconds']);
+
+                if ($remaining_seconds < 0) {
+                    $remaining_hr .= '&nbsp;(+)';
+                }
+
+                $rowCount = count($task['logs']);
+                $firstRow = true;
+
+                foreach ($task['logs'] as $log) { ?>
+                    <tr>
+                        <?php if (!$printedMember) { ?>
+                            <td rowspan="<?php echo $memberRowCount; ?>"><?php echo $sl; ?></td>
+                            <td rowspan="<?php echo $memberRowCount; ?>"><?php echo $task['member_name']; ?></td>
+                            <?php $printedMember = true; ?>
+                        <?php } ?>
+
+                        <?php if ($firstRow) { ?>
+                            <td rowspan="<?php echo $rowCount; ?>"><?php echo $task['project_name']; ?></td>
+                        <?php } ?>
+
+                        <td><?php echo $log['datetime']; ?></td>
+                        <td><?php echo $task_name; ?></td>
+
+                        <?php if ($firstRow) { ?>
+                            <td rowspan="<?php echo $rowCount; ?>"><?php echo $task['estimated_hr']; ?></td>
+                            <td rowspan="<?php echo $rowCount; ?>"><?php echo $spent_hr; ?></td>
+                            <td rowspan="<?php echo $rowCount; ?>"><?php echo $remaining_hr; ?></td>
+                        <?php } ?>
+                    </tr>
+                <?php
+                    $firstRow = false;
+                }
+            }
+
+            // --- Per-user total row ---
+            $total_estimated_hr = convert_seconds_to_time_format($userTotals['estimated_hr_s']);
+            $total_spent_hr = convert_seconds_to_time_format($userTotals['spent_seconds']);
+            $total_remaining_hr = convert_seconds_to_time_format($userTotals['remaining_seconds']);
+            ?>
+            <tr style="font-weight:bold; background:#f2f2f2;">
+                <td colspan="5" class="text-end">Total for <?php echo $task['project_name']; ?>:</td>
+                <td><?php echo $total_estimated_hr; ?></td>
+                <td><?php echo $total_spent_hr; ?></td>
+                <td><?php echo $total_remaining_hr; ?></td>
+            </tr>
+            <?php
+            $sl++;
+        }
+        ?>
+    </tbody>
+</table>
 
 
-
-                                        ?>
-                                        <tr>
-                                            <?php if ($firstRow) { ?>
-                                                <td rowspan="<?php echo $rowCount; ?>"><?php echo $sl; ?></td>
-                                                <td rowspan="<?php echo $rowCount; ?>"><?php echo $item->member_name; ?></td>
-                                                <td rowspan="<?php echo $rowCount; ?>"><?php echo $item->project_name; ?></td>
-                                            <?php } ?>
-
-                                            <td>
-                                                <?php echo format_to_time($item->work_start_time) . " to " . format_to_time($item->work_end_time); ?>
-                                            </td>
-                                            <td><?php echo $item->task_name ? $item->task_name : "-"; ?></td>
-                                            <td><?php echo ($estimated_hr); ?></td>
-                                            <td><?php echo ($spent_hr); ?></td>
-                                            <td><?php echo ($remaining_hr); ?></td>
-                                        </tr>
-                                        <?php
-                                        $firstRow = false;
-                                    }
-                                    $sl++;
-                                } ?>
-                            </tbody>
-                        </table>
 
 
                     </div>
@@ -355,12 +419,27 @@
 <script type="text/javascript">
     $(document).ready(function () {
         $("#project-table").appTable({source: 'data/projects.json'});
+        $(".select2").select2();
     });
 
     function printReport() {
         var reportContainer = document.querySelector('.tab-pane.fade.active.show').innerHTML;
         var originalContent = document.body.innerHTML;
-        document.body.innerHTML = reportContainer;
+        document.body.innerHTML = `
+            <div class="container-fluid" style="margin-top: 20px; margin-bottom: 20px;">
+                <div class="row">
+                    <div class="col-md-12 text-center">
+                        <img src="http://demo-crm.mysoftheaven.com/files/system/_file68f10a6ad331e-site-logo.png" alt="logo" width="200px">
+                        <h1>Mysoftheaven BD Ltd.</h1>
+                    </div>
+                </div>
+            </div>
+            <hr>
+        ` + `
+            <div style="margin: 20px;">
+        ` + reportContainer + `
+            </div>
+        `;
         window.print();
         document.body.innerHTML = originalContent;
     }

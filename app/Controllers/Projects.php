@@ -1447,6 +1447,9 @@ class Projects extends Security_Controller {
     /* start/stop project timer */
 
     function timer($project_id, $timer_status = "start") {
+        if ($timer_status == "start") {
+            return $this->stop_timer_modal_form($project_id);
+        }
         validate_numeric_value($project_id);
         $this->access_only_team_members();
         $note = $this->request->getPost("note");

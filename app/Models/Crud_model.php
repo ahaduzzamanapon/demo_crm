@@ -302,7 +302,9 @@ class Crud_model extends Model {
             $data = array('deleted' => 0);
         }
         $this->db_builder->where("id", $id);
-        $success = $this->db_builder->update($data);
+        $success = $this->db_builder->delete();
+
+        // $success = $this->db_builder->update($data);
         if ($success) {
             if ($this->log_activity) {
                 if ($undo) {
