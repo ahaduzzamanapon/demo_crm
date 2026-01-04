@@ -46,6 +46,12 @@ $routes->get("Updates", "Updates::index");
 $routes->get("Updates/(:any)", "Updates::$1");
 $routes->post("Updates/(:any)", "Updates::$1");
 
+// API routes
+$routes->post('leads_api/save', 'Leads_api::save', ['filter' => 'cors']);
+$routes->options('leads_api/save', 'Leads_api::save', ['filter' => 'cors']);
+$routes->get('leads_api/list_users', 'Leads_api::list_users');
+
+
 /*
  * --------------------------------------------------------------------
  * Additional Routing
