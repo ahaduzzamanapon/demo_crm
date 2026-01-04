@@ -16,7 +16,9 @@ class Leads_api extends Controller {
         $this->Users_model = model("App\Models\Users_model");
         $this->Clients_model = model("App\Models\Clients_model");
         $this->Lead_status_model = model("App\Models\Lead_status_model");
+        $this->Lead_status_model = model("App\Models\Lead_status_model");
         $this->Notes_model = model("App\Models\Notes_model");
+        $this->Events_model = model("App\Models\Events_model");
         
         $Settings_model = model("App\Models\Settings_model");
         $settings = $Settings_model->get_all_required_settings()->getResult();
@@ -150,5 +152,147 @@ class Leads_api extends Controller {
         } catch (\Throwable $e) {
             echo json_encode(array("success" => false, 'message' => 'Exception: ' . $e->getMessage()));
         }
+    }
+
+    function get_daily_schedules() {
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+        if ($this->request->getMethod() === 'options') {
+            exit;
+        }
+
+        try {
+            $rules = [
+                "owner_email" => "required|valid_email"
+            ];
+            
+            if (!$this->validate($rules)) {
+                 echo json_encode(array("success" => false, 'message' => $this->validator->getErrors()));
+                 exit();
+            }
+
+            $owner_email = $this->request->getPost('owner_email');
+            $owner_user = $this->Users_model->get_one_where(array("email" => $owner_email, "deleted" => 0, "status" => "active", "user_type" => "staff"));
+
+            if (!$owner_user->id) {
+                echo json_encode(array("success" => false, 'message' => 'Owner not found.'));
+                exit();
+            }
+
+            // Get events for today
+            $today = get_my_local_time("Y-m-d"); 
+            $options = [
+                'user_id' => $owner_user->id,
+                'start_date' => $today,
+                'end_date' => $today,
+                'type' => 'event' // Only events, not tasks
+            ];
+            
+            // Re-using get_details but it doesn't support "has_lead_id". 
+            // We just fetch all user's events for today and filter.
+            $events_raw = $this->Events_model->get_details($options)->getResult();
+            
+            $schedules = [];
+            foreach($events_raw as $event) {
+                // Filter by Date (Strictly Today) to fix model issue returning all events
+                // Check if Today is between Start and End date of the event
+                if ($event->start_date > $today || ($event->end_date && $event->end_date < $today)) {
+                    continue;
+                }
+
+                // Check if event is linked to a lead explicitly OR linked to a client that IS a lead
+                $is_linked_to_lead = !empty($event->lead_id);
+                $is_client_lead = (!empty($event->client_id) && isset($event->is_lead) && $event->is_lead == 1);
+
+                if($is_linked_to_lead || $is_client_lead) {
+                    $target_lead_id = $is_linked_to_lead ? $event->lead_id : $event->client_id;
+                    
+                    $schedules[] = [
+                        'id' => $event->id,
+                        'title' => $event->title,
+                        'lead_id' => $target_lead_id,
+                        'start_time' => $event->start_time,
+                        'end_time' => $event->end_time,
+                        'client_name' => $event->company_name ? $event->company_name : 'Lead #' . $target_lead_id,
+                        'description' => $event->description
+                    ];
+                }
+            }
+
+            // Also fetch Leads created today? User said "schedule list". 
+            // Typically means planned events. Sticking to events.
+
+            // Fetch Lead Statuses for the dropdown
+            $statuses = $this->Lead_status_model->get_details()->getResult();
+            $status_list = [];
+            foreach($statuses as $st) {
+                $status_list[] = ['id' => $st->id, 'title' => $st->title];
+            }
+
+            echo json_encode(array("success" => true, 'schedules' => $schedules, 'statuses' => $status_list));
+
+        } catch (\Throwable $e) {
+            echo json_encode(array("success" => false, 'message' => 'Exception: ' . $e->getMessage()));
+        }
+    }
+
+    function update_lead_status() {
+         header('Access-Control-Allow-Origin: *');
+         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+         header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+         if ($this->request->getMethod() === 'options') {
+             exit;
+         }
+
+         try {
+             $rules = [
+                 "lead_id" => "required",
+                 "status" => "required"
+             ];
+             
+             if (!$this->validate($rules)) {
+                  echo json_encode(array("success" => false, 'message' => $this->validator->getErrors()));
+                  exit();
+             }
+             
+             $lead_id = $this->request->getPost('lead_id');
+             $status_id = $this->request->getPost('status'); // Assuming ID is passed
+             $remarks = $this->request->getPost('remarks');
+             $feedback = $this->request->getPost('feedback'); 
+             $owner_email = $this->request->getPost('owner_email'); // For note creator
+
+             // Update Lead Status
+             $lead_data = ['lead_status_id' => $status_id];
+             $this->Clients_model->ci_save($lead_data, $lead_id);
+             
+             // Add Note
+             if($remarks || $feedback) {
+                 $note_content = trim(($remarks ? "Meeting Remarks: " . $remarks . "\n" : "") . ($feedback ? "Feedback: " . $feedback : ""));
+                 
+                 $creator_id = 0; // System default
+                 if($owner_email) {
+                     $owner = $this->Users_model->get_one_where(array("email" => $owner_email));
+                     if($owner->id) $creator_id = $owner->id;
+                 }
+
+                 $note_data = array(
+                    "title" => "Meeting Feedback",
+                    "description" => $note_content,
+                    "created_by" => $creator_id,
+                    "created_at" => get_current_utc_time(),
+                    "client_id" => $lead_id,
+                    "is_public" => 0
+                );
+                $this->Notes_model->ci_save($note_data);
+             }
+             
+             echo json_encode(array("success" => true, 'message' => 'Lead status updated'));
+
+         } catch (\Throwable $e) {
+             echo json_encode(array("success" => false, 'message' => 'Exception: ' . $e->getMessage()));
+         }
     }
 }
