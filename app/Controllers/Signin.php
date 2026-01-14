@@ -4,13 +4,15 @@ namespace App\Controllers;
 
 use App\Libraries\ReCAPTCHA;
 
-class Signin extends App_Controller {
+class Signin extends App_Controller
+{
 
     private $signin_validation_errors;
 
-    function __construct() {
+    function __construct()
+    {
         parent::__construct();
-          header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Origin: *');
         // Allow methods: GET, POST, OPTIONS
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         // Allow header Content-Type: application/json
@@ -19,7 +21,8 @@ class Signin extends App_Controller {
         helper('email');
     }
 
-    function index() {
+    function index()
+    {
         if ($this->Users_model->login_user_id()) {
             app_redirect('dashboard/view');
         } else {
@@ -37,7 +40,8 @@ class Signin extends App_Controller {
         }
     }
 
-    private function has_recaptcha_error() {
+    private function has_recaptcha_error()
+    {
 
         $ReCAPTCHA = new ReCAPTCHA();
         $response = $ReCAPTCHA->validate_recaptcha(false);
@@ -51,7 +55,8 @@ class Signin extends App_Controller {
     }
 
     // check authentication
-    function authenticate() {
+    function authenticate()
+    {
         $validation = $this->validate_submitted_data(array(
             "email" => "required|valid_email",
             "password" => "required"
@@ -105,12 +110,58 @@ class Signin extends App_Controller {
             app_redirect('dashboard/view');
         }
     }
-    function authenticate_new() {
-      
-    $email=$this->request->getPost("email");
-    $password=$this->request->getPost("password");
-        
-       
+
+    // SSO Login
+    function sso()
+    {
+        $email = $this->request->getGet('email');
+        $timestamp = $this->request->getGet('timestamp');
+        $signature = $this->request->getGet('signature');
+        $secret = getenv('SSO_SECRET_KEY'); // Or use your config/setting retrieval
+
+        if (!$email || !$timestamp || !$signature) {
+            die('Missing parameters');
+        }
+
+        // Validate Timestamp (5 minutes window)
+        if (abs(time() - $timestamp) > 300) {
+            die('Link expired');
+        }
+
+        // Validate Signature
+        $expected_signature = hash_hmac('sha256', $email . $timestamp, $secret);
+        if (!hash_equals($expected_signature, $signature)) {
+            die('Invalid signature');
+        }
+
+        // Login User
+        // We need to find the user by email. We can use a custom method or existing model logic.
+        $user_info = $this->Users_model->get_one_where(['email' => $email, 'deleted' => 0, 'status' => 'active']);
+
+        if ($user_info) {
+            // Set Session manually (CodeIgniter 4)
+            $session = \Config\Services::session();
+            $session->set('user_id', $user_info->id);
+
+            // Optional: Trigger hooks like normal login
+            try {
+                app_hooks()->do_action('app_hook_after_signin');
+            } catch (\Exception $ex) {
+                log_message('error', '[ERROR] {exception}', ['exception' => $ex]);
+            }
+
+            app_redirect('dashboard/view');
+        } else {
+            die('User not found or inactive');
+        }
+    }
+    function authenticate_new()
+    {
+
+        $email = $this->request->getPost("email");
+        $password = $this->request->getPost("password");
+
+
 
         //check if there reCaptcha is enabled
         //if reCaptcha is enabled, check the validation
@@ -149,12 +200,14 @@ class Signin extends App_Controller {
         }
     }
 
-    function sign_out() {
+    function sign_out()
+    {
         $this->Users_model->sign_out();
     }
 
     //send an email to users mail with reset password link
-    function send_reset_password_mail() {
+    function send_reset_password_mail()
+    {
         $this->validate_submitted_data(array(
             "email" => "required|valid_email|max_length[100]"
         ));
@@ -174,7 +227,7 @@ class Signin extends App_Controller {
                 $email_template = $this->Email_templates_model->get_final_template("reset_password", true);
 
                 $user_language = $user->language;
-                $parser_data["ACCOUNT_HOLDER_NAME"] =  clean_data($user->first_name . " " . $user->last_name);
+                $parser_data["ACCOUNT_HOLDER_NAME"] = clean_data($user->first_name . " " . $user->last_name);
 
                 $parser_data["SIGNATURE"] = get_array_value($email_template, "signature_$user_language") ? get_array_value($email_template, "signature_$user_language") : get_array_value($email_template, "signature_default");
                 $parser_data["LOGO_URL"] = get_logo_url();
@@ -215,14 +268,16 @@ class Signin extends App_Controller {
     }
 
     //show forgot password recovery form
-    function request_reset_password() {
+    function request_reset_password()
+    {
         $view_data["form_type"] = "request_reset_password";
         return $this->template->view('signin/index', $view_data);
     }
 
     //when user clicks to reset password link from his/her email, redirect to this url
-    function new_password($key) {
-        
+    function new_password($key)
+    {
+
         if (strlen($key) !== 10) {
             show_404();
         }
@@ -246,7 +301,8 @@ class Signin extends App_Controller {
     }
 
     //finally reset the old password and save the new password
-    function do_reset_password() {
+    function do_reset_password()
+    {
         $this->validate_submitted_data(array(
             "key" => "required",
             "password" => "required"
@@ -276,7 +332,8 @@ class Signin extends App_Controller {
     }
 
     //check valid key
-    private function is_valid_reset_password_key($verification_code = "") {
+    private function is_valid_reset_password_key($verification_code = "")
+    {
 
         if ($verification_code) {
             $options = array("code" => $verification_code, "type" => "reset_password");
