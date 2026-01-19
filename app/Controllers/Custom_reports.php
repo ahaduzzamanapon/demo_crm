@@ -9,17 +9,18 @@ class Custom_reports extends Security_Controller
     public function __construct()
     {
         parent::__construct();
-        helper(['form']);
+        helper(['form', 'date_time']);
         parent::__construct();
         $this->taskStatusModel = model('App\Models\Task_status_model');
-        $this->projectsModel   = model('App\Models\Projects_model');
+        $this->projectsModel = model('App\Models\Projects_model');
         $this->Timesheets_model = model('App\Models\Timesheets_model');
         $this->Users_model = model('App\Models\Users_model');
         $this->Tasks_model = model('App\Models\Tasks_model');
-        $this->db              = \Config\Database::connect();
+        $this->db = \Config\Database::connect();
     }
 
-    public function index() {
+    public function index()
+    {
 
         $project_id = $this->request->getGet('project_id');
         $member_id = $this->request->getGet('member_id');
@@ -31,7 +32,7 @@ class Custom_reports extends Security_Controller
             $start_date = date('Y-m-01');
             $end_date = date('Y-m-t');
         }
-        
+
         $view_data['project_id'] = $project_id;
         $view_data['member_id'] = $member_id;
         $view_data['task_id'] = $task_id;
@@ -63,7 +64,7 @@ class Custom_reports extends Security_Controller
         $view_data['members_dropdown'] = $members_dropdown;
 
         $tasks_where = array("deleted" => 0);
-        if($project_id){
+        if ($project_id) {
             $tasks_where["project_id"] = $project_id;
         }
         $tasks = $this->Tasks_model->get_all_where($tasks_where)->getResult();
@@ -74,7 +75,7 @@ class Custom_reports extends Security_Controller
         $view_data['tasks_dropdown'] = $tasks_dropdown;
 
         $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports");
-        
+
         if ($custom_reports_permission === "own") {
             $member_id = $this->login_user->id;
         }
@@ -134,7 +135,7 @@ class Custom_reports extends Security_Controller
         $users_table = $this->db->prefixTable('users');
         $project_members_table = $this->db->prefixTable('project_members');
         $project_time_table = $this->db->prefixTable('project_time');
-        
+
         $time_tracking_where = "";
         if ($project_id) {
             $time_tracking_where .= " AND p.id = $project_id";
@@ -147,7 +148,7 @@ class Custom_reports extends Security_Controller
         if ($task_id) {
             $est_where .= " AND id = $task_id";
         }
-        
+
         $spt_where = "WHERE deleted = 0 AND status = 'logged'";
         if ($task_id) {
             $spt_where .= " AND task_id = $task_id";
@@ -291,17 +292,22 @@ class Custom_reports extends Security_Controller
             // Get time logs
             $sql_time_logs = "SELECT DATE(start_time) as log_date, SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))) as seconds FROM $project_time_table WHERE user_id = $user_id AND status = 'logged' AND (DATE(start_time) BETWEEN '$start_date' AND '$end_date') GROUP BY DATE(start_time)";
             $time_logs_result = $this->db->query($sql_time_logs)->getResult();
-            
+
             $daily_logs = [];
             $total_seconds_worked = 0;
-            foreach($time_logs_result as $log) {
-                $daily_logs[$log->log_date] = $log->seconds / 3600;
+            foreach ($time_logs_result as $log) {
+                // Use decimal hours for calculation but formatted string for view if needed? 
+                // Wait, view iterates daily_logs to show hours. User wants time format here too.
+                $daily_logs[$log->log_date] = convert_seconds_to_time_format($log->seconds);
                 $total_seconds_worked += $log->seconds;
             }
 
             $availability = $working_days - $total_leave;
-            $utilization = $total_seconds_worked / 3600;
-            $utilization_rate = $availability > 0 ? ($utilization / ($availability * 8)) * 100 : 0;
+            $daily_work_hours = 8; // Office hours
+            $utilization_decimal = $total_seconds_worked / 3600; // Keep for calculation
+            $utilization_display = convert_seconds_to_time_format($total_seconds_worked); // Format for display
+
+            $utilization_rate = $availability > 0 ? ($utilization_decimal / ($availability * $daily_work_hours)) * 100 : 0;
             $capacity_loss = $working_days > 0 ? ($total_leave / $working_days) * 100 : 0;
 
             $resource_utilization_data[] = [
@@ -309,7 +315,7 @@ class Custom_reports extends Security_Controller
                 'designation' => $user->job_title,
                 'total_leave' => $total_leave,
                 'availability' => $availability,
-                'utilization' => round($utilization, 2),
+                'utilization' => $utilization_display,
                 'utilization_rate' => round($utilization_rate, 2),
                 'capacity_loss' => round($capacity_loss, 2),
                 'daily_logs' => $daily_logs
