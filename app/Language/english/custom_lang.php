@@ -35,4 +35,9 @@ $lang["availability"] = "Availability";
 $lang["utilization"] = "Utilization";
 $lang["utilization_rate"] = "Utilization Rate";
 $lang["capacity_loss"] = "Capacity Loss";
+$lang["admin_dashboard"] = "Admin Dashboard";
+$lang["quick_links"] = "Quick Links";
+$lang["can_access_admin_dashboard"] = "Can access Admin Dashboard";
 return $lang;
+
+

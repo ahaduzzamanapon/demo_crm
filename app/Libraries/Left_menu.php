@@ -5,17 +5,20 @@ namespace App\Libraries;
 use App\Controllers\Security_Controller;
 use App\Libraries\Permission_manager;
 
-class Left_menu {
+class Left_menu
+{
 
     private $ci = null;
 
-    public function __construct() {
-       
+    public function __construct()
+    {
+
         $this->ci = new Security_Controller(false);
     }
 
-    private function _get_sidebar_menu_items($type = "") {
-       
+    private function _get_sidebar_menu_items($type = "")
+    {
+
         $dashboard_menu = array("name" => "dashboard", "url" => "dashboard", "class" => "monitor");
 
         $selected_dashboard_id = get_setting("user_" . $this->ci->login_user->id . "_dashboard");
@@ -241,9 +244,13 @@ class Left_menu {
             );
 
 
-        
 
-          
+
+
+
+            if ($this->ci->login_user->is_admin || get_array_value($this->ci->login_user->permissions, "can_access_admin_dashboard")) {
+                $sidebar_menu["admin_dashboard"] = array("name" => "admin_dashboard", "url" => "admin_dashboard", "class" => "layout");
+            }
 
             if ($this->ci->login_user->is_admin || get_array_value($this->ci->login_user->permissions, "can_manage_all_kinds_of_settings")) {
                 $sidebar_menu["settings"] = array(
@@ -353,7 +360,8 @@ class Left_menu {
         return $this->position_items_for_default_left_menu($sidebar_menu);
     }
 
-    function _get_active_menu($sidebar_menu = array()) {
+    function _get_active_menu($sidebar_menu = array())
+    {
         $router = service('router');
         $controller_name = strtolower(get_actual_controller_name($router));
         $uri_string = uri_string();
@@ -430,7 +438,8 @@ class Left_menu {
         return $sidebar_menu;
     }
 
-    function get_available_items($type = "default") {
+    function get_available_items($type = "default")
+    {
         $items_array = $this->_prepare_sidebar_menu_items($type);
 
         $default_left_menu_items = $this->_get_left_menu_from_setting($type);
@@ -453,7 +462,8 @@ class Left_menu {
         return $items ? $items : "<span class='text-off empty-area-text'>" . app_lang('no_more_items_available') . "</span>";
     }
 
-    private function _prepare_sidebar_menu_items($type = "", $return_sub_menu_data = false) {
+    private function _prepare_sidebar_menu_items($type = "", $return_sub_menu_data = false)
+    {
         $final_items_array = array();
         $items_array = $this->_get_sidebar_menu_items($type);
 
@@ -488,7 +498,8 @@ class Left_menu {
         return $final_items_array;
     }
 
-    private function _get_left_menu_from_setting_for_rander($is_preview = false, $type = "default") {
+    private function _get_left_menu_from_setting_for_rander($is_preview = false, $type = "default")
+    {
         $user_left_menu = get_setting("user_" . $this->ci->login_user->id . "_left_menu");
         $default_left_menu = ($type == "client_default" || $this->ci->login_user->user_type == "client") ? get_setting("default_client_left_menu") : get_setting("default_left_menu");
         $custom_left_menu = "";
@@ -506,7 +517,8 @@ class Left_menu {
         return $custom_left_menu ? json_decode(json_encode(@unserialize($custom_left_menu)), true) : array();
     }
 
-    private function _get_left_menu_from_setting($type) {
+    private function _get_left_menu_from_setting($type)
+    {
         if ($type == "client_default") {
             $default_left_menu = get_setting("default_client_left_menu");
         } else if ($type == "user") {
@@ -524,7 +536,8 @@ class Left_menu {
         return $result;
     }
 
-    public function _get_item_data($item, $is_default_item = false) {
+    public function _get_item_data($item, $is_default_item = false)
+    {
         $name = get_array_value($item, "name");
         $language_key = get_array_value($item, "language_key");
         $url = get_array_value($item, "url");
@@ -570,7 +583,8 @@ class Left_menu {
         }
     }
 
-    function get_sortable_items($type = "default") {
+    function get_sortable_items($type = "default")
+    {
         $items = "<div id='menu-item-list-2' class='js-left-menu-scrollbar add-column-drop text-center p15 menu-item-list sortable-items-container'>";
 
         $default_left_menu_items = $this->_get_left_menu_from_setting($type);
@@ -591,7 +605,8 @@ class Left_menu {
         return $items;
     }
 
-    function rander_left_menu($is_preview = false, $type = "default") {
+    function rander_left_menu($is_preview = false, $type = "default")
+    {
         $final_left_menu_items = array();
         $custom_left_menu_items = $this->_get_left_menu_from_setting_for_rander($is_preview, $type);
 
@@ -629,7 +644,8 @@ class Left_menu {
         return view("includes/left_menu", $view_data);
     }
 
-    private function _get_item_array_value($data_array, $left_menu_items) {
+    private function _get_item_array_value($data_array, $left_menu_items)
+    {
         $name = get_array_value($data_array, "name");
         $language_key = get_array_value($data_array, "language_key");
         $url = get_array_value($data_array, "url");
@@ -647,7 +663,8 @@ class Left_menu {
     }
 
     //position items for plugins
-    private function position_items_for_default_left_menu($sidebar_menu = array()) {
+    private function position_items_for_default_left_menu($sidebar_menu = array())
+    {
         foreach ($sidebar_menu as $key => $menu) {
             $position = get_array_value($menu, "position");
             if ($position) {
