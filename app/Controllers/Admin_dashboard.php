@@ -17,18 +17,7 @@ class Admin_dashboard extends Security_Controller
 
     public function index()
     {
-        $Users_model = model('App\Models\Users_model');
-        $Projects_model = model('App\Models\Projects_model');
-        $Tasks_model = model('App\Models\Tasks_model');
-        $Clients_model = model('App\Models\Clients_model');
-
-        $view_data["page_title"] = app_lang("admin_dashboard");
-        $view_data["total_team_members"] = $Users_model->get_all_where(["user_type" => "staff", "deleted" => 0, "status" => "active"])->getNumRows();
-        $view_data["total_projects"] = $Projects_model->get_details(["deleted" => 0])->getNumRows();
-        $view_data["total_tasks"] = $Tasks_model->get_all_where(["deleted" => 0])->getNumRows();
-        $view_data["total_clients"] = $Clients_model->get_details([])->getNumRows();
-
-        return $this->template->rander("admin_dashboard/index", $view_data);
+        return $this->template->rander("admin_dashboard/index");
     }
 
 }
