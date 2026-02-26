@@ -52,26 +52,27 @@
         <?php if ($client_id) { ?>
             <input type="hidden" name="client_id" value="<?php echo $client_id; ?>" />
         <?php } else if ($login_user->user_type == "client" || $hide_clients_dropdown) { ?>
-            <input type="hidden" name="client_id" value="<?php echo $model_info->client_id; ?>" />
+                <input type="hidden" name="client_id" value="<?php echo $model_info->client_id; ?>" />
         <?php } else { ?>
-            <div class="form-group <?php echo $model_info->project_type === "internal_project" ? 'hide' : ''; ?>" id="clients-dropdown">
-                <div class="row">
-                    <label for="client_id" class=" col-md-3"><?php echo app_lang('client'); ?></label>
-                    <div class=" col-md-9">
-                        <?php
-                        echo form_input(array(
-                            "id" => "project_client_id",
-                            "name" => "client_id",
-                            "value" => $model_info->client_id,
-                            "class" => "form-control",
-                            "placeholder" => app_lang('client'),
-                            "data-rule-required" => true,
-                            "data-msg-required" => app_lang("field_required"),
-                        ));
-                        ?>
+                <div class="form-group <?php echo $model_info->project_type === "internal_project" ? 'hide' : ''; ?>"
+                    id="clients-dropdown">
+                    <div class="row">
+                        <label for="client_id" class=" col-md-3"><?php echo app_lang('client'); ?></label>
+                        <div class=" col-md-9">
+                            <?php
+                            echo form_input(array(
+                                "id" => "project_client_id",
+                                "name" => "client_id",
+                                "value" => $model_info->client_id,
+                                "class" => "form-control",
+                                "placeholder" => app_lang('client'),
+                                "data-rule-required" => true,
+                                "data-msg-required" => app_lang("field_required"),
+                            ));
+                            ?>
+                        </div>
                     </div>
                 </div>
-            </div>
         <?php } ?>
 
         <div class="form-group">
@@ -146,6 +147,20 @@
 
         <div class="form-group">
             <div class="row">
+                <label for="billable_type" class=" col-md-3"><?php echo app_lang('billable_type'); ?></label>
+                <div class=" col-md-9">
+                    <?php
+                    echo form_dropdown("billable_type", array(
+                        "billable" => app_lang("billable"),
+                        "non_billable" => app_lang("non_billable"),
+                    ), array($model_info->billable_type ? $model_info->billable_type : "billable"), "class='select2' id='billable_type'");
+                    ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="row">
                 <label for="project_labels" class=" col-md-3"><?php echo app_lang('labels'); ?></label>
                 <div class=" col-md-9">
                     <?php
@@ -188,19 +203,22 @@
         <?php echo modal_anchor(get_uri("projects/project_member_modal_form"), "", array()); ?>
     </div>
 
-    <button type="button" class="btn btn-default" data-bs-dismiss="modal"><span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?></button>
+    <button type="button" class="btn btn-default" data-bs-dismiss="modal"><span data-feather="x" class="icon-16"></span>
+        <?php echo app_lang('close'); ?></button>
     <?php if (!$model_info->id && $login_user->user_type != "client" && $can_edit_projects) { ?>
-        <button type="button" id="save-and-continue-button" class="btn btn-info text-white"><span data-feather="check-circle" class="icon-16"></span> <?php echo app_lang('save_and_continue'); ?></button>
+        <button type="button" id="save-and-continue-button" class="btn btn-info text-white"><span
+                data-feather="check-circle" class="icon-16"></span> <?php echo app_lang('save_and_continue'); ?></button>
     <?php } ?>
-    <button type="submit" class="btn btn-primary"><span data-feather="check-circle" class="icon-16"></span> <?php echo app_lang('save'); ?></button>
+    <button type="submit" class="btn btn-primary"><span data-feather="check-circle" class="icon-16"></span>
+        <?php echo app_lang('save'); ?></button>
 </div>
 <?php echo form_close(); ?>
 
 <script type="text/javascript">
-    $(document).ready(function() {
+    $(document).ready(function () {
         window.projectForm = $("#project-form").appForm({
             closeModalOnSuccess: false,
-            onSuccess: function(result) {
+            onSuccess: function (result) {
                 if (typeof RELOAD_PROJECT_VIEW_AFTER_UPDATE !== "undefined" && RELOAD_PROJECT_VIEW_AFTER_UPDATE) {
                     location.reload();
 
@@ -235,7 +253,7 @@
             }
         });
 
-        setTimeout(function() {
+        setTimeout(function () {
             $("#title").focus();
         }, 200);
         $("#project-form .select2").select2();
@@ -250,7 +268,7 @@
         //save and open add new project member modal
         window.showAddNewModal = false;
 
-        $("#save-and-continue-button").click(function() {
+        $("#save-and-continue-button").click(function () {
             window.showAddNewModal = true;
             $(this).trigger("submit");
         });
@@ -275,11 +293,11 @@
         }
 
 
-        $("#project-type-dropdown").select2().on("change", function() {
+        $("#project-type-dropdown").select2().on("change", function () {
             validateClientDropdown();
         });
 
-        setTimeout(function() {
+        setTimeout(function () {
             validateClientDropdown();
         });
 

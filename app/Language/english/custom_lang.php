@@ -38,6 +38,9 @@ $lang["capacity_loss"] = "Capacity Loss";
 $lang["admin_dashboard"] = "Admin Dashboard";
 $lang["quick_links"] = "Quick Links";
 $lang["can_access_admin_dashboard"] = "Can access Admin Dashboard";
+$lang["billable_type"] = "Billable Type";
+$lang["billable"] = "Billable";
+$lang["non_billable"] = "Non Billable";
 return $lang;
 
 

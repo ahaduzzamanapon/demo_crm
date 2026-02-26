@@ -10,20 +10,31 @@
 
     <ul class="list-group list-group-flush">
         <li class="list-group-item border-top">
-            <?php echo app_lang("start_date"); ?>: <?php echo is_date_exists($project_info->start_date) ? format_to_date($project_info->start_date, false) : "-"; ?>
+            <?php echo app_lang("start_date"); ?>:
+            <?php echo is_date_exists($project_info->start_date) ? format_to_date($project_info->start_date, false) : "-"; ?>
         </li>
         <li class="list-group-item border-top">
-            <?php echo app_lang("deadline"); ?>: <?php echo is_date_exists($project_info->deadline) ? format_to_date($project_info->deadline, false) : "-"; ?>
+            <?php echo app_lang("deadline"); ?>:
+            <?php echo is_date_exists($project_info->deadline) ? format_to_date($project_info->deadline, false) : "-"; ?>
         </li>
         <?php if ($login_user->user_type === "staff" && $project_info->project_type === "client_project") { ?>
             <li class="list-group-item border-top">
-                <?php echo app_lang("client"); ?>: <?php echo anchor(get_uri("clients/view/" . $project_info->client_id), $project_info->company_name? $project_info->company_name: ""); ?>
+                <?php echo app_lang("client"); ?>:
+                <?php echo anchor(get_uri("clients/view/" . $project_info->client_id), $project_info->company_name ? $project_info->company_name : ""); ?>
             </li>
         <?php } else { ?>
             <li class="list-group-item border-top">
-                <?php echo app_lang("status"); ?>: <?php echo $project_info->title_language_key ? app_lang($project_info->title_language_key) : $project_info->status_title; ?>
+                <?php echo app_lang("status"); ?>:
+                <?php echo $project_info->title_language_key ? app_lang($project_info->title_language_key) : $project_info->status_title; ?>
             </li>
         <?php } ?>
+        <li class="list-group-item border-top">
+            <?php echo app_lang("billable_type"); ?>:
+            <?php
+            $billable_type = $project_info->billable_type ? $project_info->billable_type : "billable";
+            echo ($billable_type === "billable") ? '<span class="badge bg-success">' . app_lang("billable") . '</span>' : '<span class="badge bg-secondary">' . app_lang("non_billable") . '</span>';
+            ?>
+        </li>
     </ul>
 </div>
 
@@ -42,36 +53,36 @@
             type: 'doughnut',
             data: {
                 datasets: [{
-                        label: 'Complete',
-                        percent: project_progress,
-                        backgroundColor: ['#6690F4'],
-                        borderWidth: 0
-                    }]
+                    label: 'Complete',
+                    percent: project_progress,
+                    backgroundColor: ['#6690F4'],
+                    borderWidth: 0
+                }]
             },
             plugins: [{
-                    beforeInit: (chart) => {
-                        const dataset = chart.data.datasets[0];
-                        chart.data.labels = [dataset.label];
-                        dataset.data = [dataset.percent, 100 - dataset.percent];
-                    }
-                },
-                {
-                    beforeDraw: (chart) => {
-                        var width = chart.chart.width,
-                                height = chart.chart.height,
-                                ctx = chart.chart.ctx;
-                        ctx.restore();
-                        ctx.font = 1.5 + "em sans-serif";
-                        ctx.fillStyle = "#9b9b9b";
-                        ctx.textBaseline = "middle";
-                        ctx.textAlign = textAlign;
-                        var text = chart.data.datasets[0].percent + "%",
-                                textX = Math.round((width - ctx.measureText(text).width) / 2),
-                                textY = height / 2;
-                        ctx.fillText(text, textX, textY);
-                        ctx.save();
-                    }
+                beforeInit: (chart) => {
+                    const dataset = chart.data.datasets[0];
+                    chart.data.labels = [dataset.label];
+                    dataset.data = [dataset.percent, 100 - dataset.percent];
                 }
+            },
+            {
+                beforeDraw: (chart) => {
+                    var width = chart.chart.width,
+                        height = chart.chart.height,
+                        ctx = chart.chart.ctx;
+                    ctx.restore();
+                    ctx.font = 1.5 + "em sans-serif";
+                    ctx.fillStyle = "#9b9b9b";
+                    ctx.textBaseline = "middle";
+                    ctx.textAlign = textAlign;
+                    var text = chart.data.datasets[0].percent + "%",
+                        textX = Math.round((width - ctx.measureText(text).width) / 2),
+                        textY = height / 2;
+                    ctx.fillText(text, textX, textY);
+                    ctx.save();
+                }
+            }
             ],
             options: {
                 maintainAspectRatio: false,
