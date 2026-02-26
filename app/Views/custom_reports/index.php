@@ -393,7 +393,7 @@
                                     <th><?php echo app_lang('leave'); ?></th>
                                     <th><?php echo app_lang('availability'); ?></th>
                                     <th><?php echo app_lang('utilization'); ?></th>
-                                    <th><?php echo app_lang('utilization_rate'); ?> (Fixed) (%)</th>
+                                    <th><?php echo app_lang('utilization_rate'); ?> (%)</th>
                                     <th><?php echo app_lang('capacity_loss'); ?> (%)</th>
 
                                 </tr>
@@ -427,7 +427,7 @@
 </div>
 <script type="text/javascript">
     $(document).ready(function () {
-        $("#project-table").appTable({  source: 'data/projects.json ' });
+        $("#project-table").appTable({ source: 'data/projects.json' });
         $(".select2").select2();
     });
 

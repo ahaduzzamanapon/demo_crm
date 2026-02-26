@@ -9,7 +9,7 @@ class Custom_reports extends Security_Controller
     public function __construct()
     {
         parent::__construct();
-        helper(['form', 'date_time']);
+        helper(['form']);
         parent::__construct();
         $this->taskStatusModel = model('App\Models\Task_status_model');
         $this->projectsModel = model('App\Models\Projects_model');

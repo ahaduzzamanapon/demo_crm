@@ -47,6 +47,8 @@ class App extends BaseConfig {
         $this->supportedLocales = $language_dropdown;
     }
 
+    public $ssoSharedSecret = 'your-super-secret-key';
+
     /**
      * --------------------------------------------------------------------------
      * Base Site URL

@@ -114,11 +114,13 @@ class Signin extends App_Controller
     // SSO Login
     function sso()
     {
+        dd('sdfg');
+        
         $email = $this->request->getGet('email');
         $timestamp = $this->request->getGet('timestamp');
         $signature = $this->request->getGet('signature');
         $secret = getenv('SSO_SECRET_KEY'); // Or use your config/setting retrieval
-
+        
         if (!$email || !$timestamp || !$signature) {
             die('Missing parameters');
         }

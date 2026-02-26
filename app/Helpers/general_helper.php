@@ -214,7 +214,6 @@ if (!function_exists('get_actual_controller_name')) {
 if (!function_exists('get_setting')) {
 
     function get_setting($key = "") {
-       
         $setting_value = get_array_value(config('Rise')->app_settings_array, $key);
         if ($setting_value !== NULL) {
             return $setting_value;
