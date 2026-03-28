@@ -438,7 +438,7 @@
             <div class="container-fluid" style="margin-top: 20px; margin-bottom: 20px;">
                 <div class="row">
                     <div class="col-md-12 text-center">
-                        <img src="http://demo-crm.mysoftheaven.com/files/system/_file68f10a6ad331e-site-logo.png" alt="logo" width="200px">
+                        <img src="http://crm.mysoftheaven.com/files/system/_file68f10a6ad331e-site-logo.png" alt="logo" width="200px">
                         <h1>Mysoftheaven BD Ltd.</h1>
                     </div>
                 </div>
