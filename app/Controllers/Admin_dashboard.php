@@ -422,9 +422,13 @@ class Admin_dashboard extends Security_Controller
                 $leave    = $leave_map[$uid]     ?? 0;
                 $override = $override_map[$uid]  ?? null;   // 'leave' | 'missing' | null
 
-                // Performance is only counted when there are actual hours
-                $util_pct = ($expected_hours > 0 && $hours > 0)
-                            ? round(($hours / $expected_hours) * 100, 2)
+                // Performance calculation:
+                // - Working day: use expected_hours (8h)
+                // - Weekend/holiday: if someone actually logged time, still measure
+                //   against 8h standard so progress bars & team score are meaningful
+                $calc_base = ($expected_hours > 0) ? $expected_hours : 8;
+                $util_pct = ($hours > 0)
+                            ? round(($hours / $calc_base) * 100, 1)
                             : 0;
 
                 $has_log = ($hours > 0) ? 1 : 0;
@@ -435,18 +439,18 @@ class Admin_dashboard extends Security_Controller
                     if ($leave > 0) $comment = 'on leave';
                     $log_found++;
                 } elseif ($override === 'leave') {
-                    // Admin marked as leave — excused, do NOT count as missing
+                    // Admin marked as leave — excused
                     $comment = 'on leave (admin)';
-                    // log_found and missing_log both unchanged, treated as excused
                 } elseif ($override === 'missing') {
-                    // Admin confirmed missing — counts as missing
+                    // Admin confirmed missing
                     $comment = 'missing log';
                     $missing_log++;
-                } elseif ($is_working_day) {
-                    // No log, no override — pending classification
+                } else {
+                    // No log, no override — always show badge so admin can classify
                     if ($leave > 0)  $comment = 'missing log + leave';
                     else             $comment = 'missing log';
-                    $missing_log++;
+                    // Only count toward missing score on actual working days
+                    if ($is_working_day) $missing_log++;
                 }
 
                 $members_data[] = [
@@ -461,14 +465,17 @@ class Admin_dashboard extends Security_Controller
                 ];
             }
 
-            // Team performance = avg of members who actually logged OR are excused
-            // Excused (leave override) counted as neutral (not 0, not positive)
-            $perf_members = array_filter($members_data, function($m) {
-                return $m['override'] !== 'leave';
+            // Team performance = avg util_pct of members who logged hours
+            // On weekends: members with no log are simply absent (not "missing"),
+            // so only count members who actually logged to keep the score fair.
+            $perf_members = array_filter($members_data, function($m) use ($is_working_day) {
+                if ($m['override'] === 'leave') return false;         // excused leave
+                if (!$is_working_day && !$m['has_log']) return false; // weekend no-show → skip
+                return true;
             });
             $count     = count($perf_members);
             $team_perf = ($count > 0)
-                         ? round(array_sum(array_column($perf_members, 'util_pct')) / $count, 2)
+                         ? round(array_sum(array_column($perf_members, 'util_pct')) / $count, 1)
                          : 0;
 
             $output_teams[] = [

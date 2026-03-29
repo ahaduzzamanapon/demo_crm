@@ -1109,7 +1109,11 @@ $(document).ready(function () {
     background: linear-gradient(90deg, #4ade80, #4361ee);
     transition: width 0.6s ease;
 }
+.perf-util-fill.overtime {
+    background: linear-gradient(90deg, #f59e0b, #ef4444);
+}
 .perf-util-pct { font-size: 11.5px; font-weight: 700; color: #334155; min-width: 38px; text-align: right; }
+.perf-util-pct.overtime { color: #d97706; }
 .perf-missing-row .perf-util-pct { color: #e2e8f0; }
 .perf-comment-col { font-size: 11px; }
 .perf-badge-missing { background: #fee2e2; color: #dc2626; border-radius: 20px; padding: 2px 8px; font-weight: 600; white-space: nowrap; }
@@ -1321,14 +1325,18 @@ $(document).ready(function () {
                     }
                 }
 
-                var utilBarW = Math.min(m.util_pct, 100);
-                var hoursStr = m.hours > 0 ? m.hours + 'h' : '0.00h';
+                var utilBarW    = Math.min(m.util_pct, 100);
+                var isOvertime  = m.util_pct > 100;
+                var fillClass   = isOvertime ? ' overtime' : '';
+                var pctClass    = isOvertime ? ' overtime' : '';
+                var pctLabel    = m.util_pct + '%' + (isOvertime ? ' ▲' : '');
+                var hoursStr    = m.hours > 0 ? m.hours + 'h' : '0.00h';
 
                 out += '<tr class="' + rowClass + '">';
                 out += '<td class="perf-sl-col">' + (idx + 1) + '</td>';
                 out += '<td class="perf-name-col">' + escHtml(m.name) + '</td>';
                 out += '<td class="perf-hours-col">' + hoursStr + '</td>';
-                out += '<td class="perf-util-col"><div class="perf-util-bar-wrap"><div class="perf-util-bar"><div class="perf-util-fill" style="width:' + utilBarW + '%"></div></div><span class="perf-util-pct">' + m.util_pct + '%</span></div></td>';
+                out += '<td class="perf-util-col"><div class="perf-util-bar-wrap"><div class="perf-util-bar"><div class="perf-util-fill' + fillClass + '" style="width:' + utilBarW + '%"></div></div><span class="perf-util-pct' + pctClass + '">' + pctLabel + '</span></div></td>';
                 out += '<td class="perf-comment-col">' + commentHtml + '</td>';
                 out += '</tr>';
             });
