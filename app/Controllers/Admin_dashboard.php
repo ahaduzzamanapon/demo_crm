@@ -14,84 +14,135 @@ class Admin_dashboard extends Security_Controller
         }
     }
 
-
     public function index()
     {
         return $this->template->rander("admin_dashboard/index");
     }
 
+    // ─── Billable Chart ────────────────────────────────────────────────────────
+
     public function get_billable_chart_data()
     {
-        $this->access_only_team_members();
-
         $projects_model = model('App\Models\Projects_model');
         $data = $projects_model->get_billable_type_counts();
 
         $billable     = (int)($data->billable     ?? 0);
         $non_billable = (int)($data->non_billable ?? 0);
         $none         = (int)($data->none_type    ?? 0);
-        $total        = $billable + $non_billable + $none;
 
         return $this->response->setJSON([
             'billable'     => $billable,
             'non_billable' => $non_billable,
             'none'         => $none,
-            'total'        => $total,
+            'total'        => $billable + $non_billable + $none,
         ]);
     }
+
+    // ─── Helper: ensure override table exists ──────────────────────────────────
+
+    private function ensureOverrideTable($db)
+    {
+        $tbl = $db->prefixTable('perf_leave_overrides');
+        $db->query("CREATE TABLE IF NOT EXISTS $tbl (
+            `id`            int(11)      NOT NULL AUTO_INCREMENT,
+            `user_id`       int(11)      NOT NULL,
+            `report_date`   date         NOT NULL,
+            `override_type` varchar(20)  NOT NULL DEFAULT 'leave',
+            `created_by`    int(11)      NOT NULL DEFAULT 0,
+            `created_at`    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `user_date` (`user_id`, `report_date`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    }
+
+    // ─── Mark override (leave / missing) ──────────────────────────────────────
+
+    public function mark_perf_override()
+    {
+        $this->access_only_team_members();
+
+        $user_id     = (int)$this->request->getPost('user_id');
+        $report_date = preg_replace('/[^0-9\-]/', '', $this->request->getPost('report_date') ?? '');
+        $raw_type    = $this->request->getPost('override_type');
+        $otype       = ($raw_type === 'leave') ? 'leave' : 'missing';
+        $by          = (int)$this->login_user->id;
+
+        if (!$user_id || !$report_date) {
+            return $this->response->setJSON(['success' => false, 'msg' => 'Invalid input.']);
+        }
+
+        $db  = \Config\Database::connect();
+        $this->ensureOverrideTable($db);
+        $tbl = $db->prefixTable('perf_leave_overrides');
+
+        $db->query("INSERT INTO $tbl (user_id, report_date, override_type, created_by)
+                    VALUES ($user_id, '$report_date', '$otype', $by)
+                    ON DUPLICATE KEY UPDATE override_type='$otype', created_by=$by, created_at=NOW()");
+
+        return $this->response->setJSON(['success' => true]);
+    }
+
+    // ─── Employee Performance Report ───────────────────────────────────────────
 
     public function get_employee_performance_report()
     {
         $this->access_only_team_members();
 
         $report_date = $this->request->getGet('report_date');
-        if (!$report_date) {
-            $report_date = date('Y-m-d');
-        }
-
-        // Sanitize — keep only digits and dashes
+        if (!$report_date) $report_date = date('Y-m-d');
         $report_date = preg_replace('/[^0-9\-]/', '', $report_date);
 
-        // Get DB connection
         $db = \Config\Database::connect();
+        $this->ensureOverrideTable($db);
 
         $users_table     = $db->prefixTable('users');
         $team_table      = $db->prefixTable('team');
         $timesheet_table = $db->prefixTable('project_time');
         $leave_table     = $db->prefixTable('leave_applications');
+        $override_table  = $db->prefixTable('perf_leave_overrides');
 
         // 1. All teams
         $teams = $db->query(
             "SELECT id, title, members FROM $team_table WHERE deleted=0 ORDER BY title ASC"
         )->getResult();
 
-        // 2. Timesheet hours for the specific date per user
-        // Use DATE(start_time) directly — times are stored in local timezone
-        $ts_sql = "SELECT $timesheet_table.user_id,
-                       ROUND((COALESCE(SUM(TIME_TO_SEC(TIMEDIFF($timesheet_table.end_time, $timesheet_table.start_time))),0) +
-                              COALESCE(SUM(ROUND(($timesheet_table.hours * 60), 0) * 60),0)) / 3600, 2) AS total_hours
-                   FROM $timesheet_table
-                   WHERE $timesheet_table.deleted=0
-                     AND $timesheet_table.status != 'open'
-                     AND DATE($timesheet_table.start_time) = '$report_date'
-                   GROUP BY $timesheet_table.user_id";
+        // 2. Timesheet hours for the date
         $ts_map = [];
-        foreach ($db->query($ts_sql)->getResult() as $row) {
+        foreach ($db->query(
+            "SELECT user_id,
+                    ROUND((COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))),0) +
+                           COALESCE(SUM(ROUND((hours * 60), 0) * 60),0)) / 3600, 2) AS total_hours
+             FROM $timesheet_table
+             WHERE deleted=0 AND status != 'open'
+               AND DATE(start_time) = '$report_date'
+             GROUP BY user_id"
+        )->getResult() as $row) {
             $ts_map[$row->user_id] = (float)$row->total_hours;
         }
 
         // 3. Approved leave covering this date
-        $leave_sql = "SELECT applicant_id, SUM(total_days) AS leave_days
-                      FROM $leave_table
-                      WHERE deleted=0 AND status='approved'
-                        AND '$report_date' BETWEEN start_date AND end_date
-                      GROUP BY applicant_id";
         $leave_map = [];
-        foreach ($db->query($leave_sql)->getResult() as $row) {
+        foreach ($db->query(
+            "SELECT applicant_id, SUM(total_days) AS leave_days
+             FROM $leave_table
+             WHERE deleted=0 AND status='approved'
+               AND '$report_date' BETWEEN start_date AND end_date
+             GROUP BY applicant_id"
+        )->getResult() as $row) {
             $leave_map[$row->applicant_id] = (float)$row->leave_days;
         }
 
-        // 4. Active staff names
+        // 4. Admin overrides for this date
+        $override_map = [];
+        foreach ($db->query(
+            "SELECT user_id, override_type
+             FROM $override_table
+             WHERE report_date = '$report_date'"
+        )->getResult() as $row) {
+            $override_map[$row->user_id] = $row->override_type;
+        }
+
+        // 5. Active staff names
         $user_map = [];
         foreach ($db->query(
             "SELECT id, CONCAT(first_name, ' ', last_name) AS full_name
@@ -101,12 +152,12 @@ class Admin_dashboard extends Security_Controller
             $user_map[$u->id] = $u->full_name;
         }
 
-        // 5. Determine if it's a working day (Mon=1 … Fri=5)
+        // 6. Working day check
         $day_of_week    = (int)(new \DateTime($report_date))->format('N');
         $is_working_day = ($day_of_week <= 5) ? 1 : 0;
         $expected_hours = $is_working_day ? 8 : 0;
 
-        // 6. Build team output
+        // 7. Build team output
         $output_teams = [];
         foreach ($teams as $team) {
             $member_ids = array_filter(array_map('trim', explode(',', $team->members ?? '')));
@@ -117,42 +168,61 @@ class Admin_dashboard extends Security_Controller
             $missing_log  = 0;
 
             foreach ($member_ids as $uid) {
-                $uid   = (int)$uid;
+                $uid      = (int)$uid;
                 if (!$uid) continue;
 
-                $name  = $user_map[$uid]  ?? "User #$uid";
-                $hours = $ts_map[$uid]    ?? 0;
-                $leave = $leave_map[$uid] ?? 0;
+                $name     = $user_map[$uid]      ?? "User #$uid";
+                $hours    = $ts_map[$uid]        ?? 0;
+                $leave    = $leave_map[$uid]     ?? 0;
+                $override = $override_map[$uid]  ?? null;   // 'leave' | 'missing' | null
 
+                // Performance is only counted when there are actual hours
                 $util_pct = ($expected_hours > 0 && $hours > 0)
                             ? round(($hours / $expected_hours) * 100, 2)
                             : 0;
 
                 $has_log = ($hours > 0) ? 1 : 0;
                 $comment = '';
-                if ($is_working_day) {
-                    if ($hours == 0 && $leave > 0)    $comment = 'missing log + leave';
-                    elseif ($hours == 0)              $comment = 'missing log';
-                    elseif ($hours > 0 && $leave > 0) $comment = 'on leave';
+
+                if ($has_log) {
+                    // Has actual log
+                    if ($leave > 0) $comment = 'on leave';
+                    $log_found++;
+                } elseif ($override === 'leave') {
+                    // Admin marked as leave — excused, do NOT count as missing
+                    $comment = 'on leave (admin)';
+                    // log_found and missing_log both unchanged, treated as excused
+                } elseif ($override === 'missing') {
+                    // Admin confirmed missing — counts as missing
+                    $comment = 'missing log';
+                    $missing_log++;
+                } elseif ($is_working_day) {
+                    // No log, no override — pending classification
+                    if ($leave > 0)  $comment = 'missing log + leave';
+                    else             $comment = 'missing log';
+                    $missing_log++;
                 }
 
                 $members_data[] = [
-                    'user_id'  => $uid,
-                    'name'     => $name,
-                    'hours'    => $hours,
-                    'util_pct' => $util_pct,
-                    'leave'    => $leave,
-                    'has_log'  => $has_log,
-                    'comment'  => $comment,
+                    'user_id'   => $uid,
+                    'name'      => $name,
+                    'hours'     => $hours,
+                    'util_pct'  => $util_pct,
+                    'leave'     => $leave,
+                    'has_log'   => $has_log,
+                    'comment'   => $comment,
+                    'override'  => $override,   // passed to frontend
                 ];
-
-                if ($has_log) $log_found++;
-                else          $missing_log++;
             }
 
-            $count     = count($members_data);
+            // Team performance = avg of members who actually logged OR are excused
+            // Excused (leave override) counted as neutral (not 0, not positive)
+            $perf_members = array_filter($members_data, function($m) {
+                return $m['override'] !== 'leave';
+            });
+            $count     = count($perf_members);
             $team_perf = ($count > 0)
-                         ? round(array_sum(array_column($members_data, 'util_pct')) / $count, 2)
+                         ? round(array_sum(array_column($perf_members, 'util_pct')) / $count, 2)
                          : 0;
 
             $output_teams[] = [
@@ -173,6 +243,8 @@ class Admin_dashboard extends Security_Controller
         ]);
     }
 
+    // ─── Best Performed Days ───────────────────────────────────────────────────
+
     public function get_best_performed_days()
     {
         $this->access_only_team_members();
@@ -184,7 +256,6 @@ class Admin_dashboard extends Security_Controller
         $month_end   = date('Y-m-t', strtotime($month_start));
 
         $db = \Config\Database::connect();
-
         $team_table      = $db->prefixTable('team');
         $timesheet_table = $db->prefixTable('project_time');
 
@@ -205,14 +276,12 @@ class Admin_dashboard extends Security_Controller
 
             $ids_str = implode(',', array_map('intval', $member_ids));
 
-            // Count distinct calendar days where ANY member logged work this month
-            // Use DATE(start_time) directly — local time stored in DB
-            $sql = "SELECT COUNT(DISTINCT DATE($timesheet_table.start_time)) AS day_count
+            $sql = "SELECT COUNT(DISTINCT DATE(start_time)) AS day_count
                     FROM $timesheet_table
-                    WHERE $timesheet_table.deleted=0
-                      AND $timesheet_table.status != 'open'
-                      AND $timesheet_table.user_id IN ($ids_str)
-                      AND DATE($timesheet_table.start_time) BETWEEN '$month_start' AND '$month_end'";
+                    WHERE deleted=0
+                      AND status != 'open'
+                      AND user_id IN ($ids_str)
+                      AND DATE(start_time) BETWEEN '$month_start' AND '$month_end'";
 
             $row = $db->query($sql)->getRow();
             $result[] = [

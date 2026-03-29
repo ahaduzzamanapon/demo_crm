@@ -924,6 +924,23 @@ $(document).ready(function () {
 .perf-badge-missing { background: #fee2e2; color: #dc2626; border-radius: 20px; padding: 2px 8px; font-weight: 600; white-space: nowrap; }
 .perf-badge-leave   { background: #fef3c7; color: #b45309; border-radius: 20px; padding: 2px 8px; font-weight: 600; white-space: nowrap; }
 .perf-badge-ml      { background: #ede9fe; color: #7c3aed; border-radius: 20px; padding: 2px 8px; font-weight: 600; white-space: nowrap; }
+.perf-badge-admin-leave { background: #dcfce7; color: #16a34a; border-radius: 20px; padding: 2px 8px; font-weight: 600; white-space: nowrap; }
+/* ── Override Action Buttons ── */
+.perf-action-group { display: inline-flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.perf-action-btn {
+    border: none;
+    border-radius: 5px;
+    padding: 3px 10px;
+    font-size: 10.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    white-space: nowrap;
+}
+.perf-action-btn:hover { opacity: 0.82; transform: translateY(-1px); }
+.perf-btn-leave   { background: #dcfce7; color: #15803d; }
+.perf-btn-missing { background: #fee2e2; color: #dc2626; }
+.perf-btn-loading { opacity: 0.5; pointer-events: none; }
 /* ── Team Footer ── */
 .perf-team-footer {
     padding: 12px 18px;
@@ -995,6 +1012,9 @@ $(document).ready(function () {
     }
 
     // Trigger report load when tab first shown
+    // Expose for markPerfOverride to call after saving
+    window._loadPerfReportFn = function() { loadPerfReport(); };
+
     document.addEventListener('DOMContentLoaded', function() {
         setDefaultDates();
 
@@ -1049,6 +1069,9 @@ $(document).ready(function () {
     function renderReport(data) {
         var teams = data.teams;
         var out   = '';
+        // Make report_date available in onclick handlers
+        window.currentReportDate = data.report_date;
+        var currentReportDate = data.report_date;
 
         if (!teams || teams.length === 0) {
             out = '<div class="perf-no-teams"><i data-feather="users"></i><p>No teams found. Please create teams with members first.</p></div>';
@@ -1083,12 +1106,28 @@ $(document).ready(function () {
             members.forEach(function(m, idx) {
                 var rowClass = m.has_log ? '' : 'perf-missing-row';
                 var commentHtml = '';
-                if (m.comment === 'missing log') {
-                    commentHtml = '<span class="perf-badge-missing">missing log</span>';
+
+                if (m.comment === 'on leave (admin)') {
+                    commentHtml = '<span class="perf-badge-admin-leave">on leave (admin)</span>';
                 } else if (m.comment === 'on leave') {
                     commentHtml = '<span class="perf-badge-leave">on leave</span>';
                 } else if (m.comment === 'missing log + leave') {
+                    // Has leave record but still no log — show action buttons
                     commentHtml = '<span class="perf-badge-ml">missing log + leave</span>';
+                    if (!m.override) {
+                        commentHtml += ' <span class="perf-action-group">' +
+                            '<button class="perf-action-btn perf-btn-leave" onclick="markPerfOverride(' + m.user_id + ',\'' + currentReportDate + '\',\'leave\')">&#10003; On Leave</button>' +
+                            '<button class="perf-action-btn perf-btn-missing" onclick="markPerfOverride(' + m.user_id + ',\'' + currentReportDate + '\',\'missing\')">&#10007; Missing</button>' +
+                            '</span>';
+                    }
+                } else if (m.comment === 'missing log') {
+                    commentHtml = '<span class="perf-badge-missing">missing log</span>';
+                    if (!m.override) {
+                        commentHtml += ' <span class="perf-action-group">' +
+                            '<button class="perf-action-btn perf-btn-leave" onclick="markPerfOverride(' + m.user_id + ',\'' + currentReportDate + '\',\'leave\')">&#10003; On Leave</button>' +
+                            '<button class="perf-action-btn perf-btn-missing" onclick="markPerfOverride(' + m.user_id + ',\'' + currentReportDate + '\',\'missing\')">&#10007; Missing</button>' +
+                            '</span>';
+                    }
                 }
 
                 var utilBarW = Math.min(m.util_pct, 100);
@@ -1128,6 +1167,38 @@ $(document).ready(function () {
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 })();
+</script>
+
+<script type="text/javascript">
+// Global override handler — called by inline onclick buttons in the performance table
+function markPerfOverride(userId, reportDate, overrideType) {
+    document.querySelectorAll('.perf-action-btn').forEach(function(b) {
+        b.classList.add('perf-btn-loading');
+    });
+
+    $.ajax({
+        url: '<?php echo get_uri("admin_dashboard/mark_perf_override"); ?>',
+        type: 'POST',
+        data: {
+            user_id:       userId,
+            report_date:   reportDate,
+            override_type: overrideType
+        },
+        dataType: 'json',
+        success: function(res) {
+            if (res && res.success) {
+                if (typeof window._loadPerfReportFn === 'function') window._loadPerfReportFn();
+                if (typeof window._loadBpdFn === 'function')        window._loadBpdFn();
+            }
+        },
+        error: function() {
+            alert('Failed to save. Please try again.');
+            document.querySelectorAll('.perf-action-btn').forEach(function(b) {
+                b.classList.remove('perf-btn-loading');
+            });
+        }
+    });
+}
 </script>
 
 <script type="text/javascript">
@@ -1186,6 +1257,9 @@ $(document).ready(function () {
     function escBpd(str) {
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
+
+    // Expose for markPerfOverride to call after saving
+    window._loadBpdFn = function() { loadBestPerformedDays(); };
 
     document.addEventListener('DOMContentLoaded', function() {
         // Load on tab first shown
