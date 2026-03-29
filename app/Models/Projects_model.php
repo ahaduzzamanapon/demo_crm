@@ -549,4 +549,17 @@ class Projects_model extends Crud_model {
         WHERE $projects_table.deleted=0 AND $projects_table.status_id=1";
         return $this->db->query($sql);
     }
+
+    function get_billable_type_counts() {
+        $projects_table = $this->db->prefixTable('projects');
+
+        $sql = "SELECT
+            SUM(CASE WHEN IFNULL($projects_table.billable_type, '') = 'billable'     THEN 1 ELSE 0 END) AS billable,
+            SUM(CASE WHEN IFNULL($projects_table.billable_type, '') = 'non_billable' THEN 1 ELSE 0 END) AS non_billable,
+            SUM(CASE WHEN ($projects_table.billable_type IS NULL OR $projects_table.billable_type = '') THEN 1 ELSE 0 END) AS none_type
+        FROM $projects_table
+        WHERE $projects_table.deleted = 0";
+
+        return $this->db->query($sql)->getRow();
+    }
 }
