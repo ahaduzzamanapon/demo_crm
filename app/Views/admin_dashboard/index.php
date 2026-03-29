@@ -1330,7 +1330,11 @@ $(document).ready(function () {
                 var fillClass   = isOvertime ? ' overtime' : '';
                 var pctClass    = isOvertime ? ' overtime' : '';
                 var pctLabel    = m.util_pct + '%' + (isOvertime ? ' ▲' : '');
-                var hoursStr    = m.hours > 0 ? m.hours + 'h' : '0.00h';
+                // Convert decimal hours → "Xh Ym"  e.g. 7.65 → "7h 39m"
+                var hRaw        = m.hours > 0 ? m.hours : 0;
+                var hInt        = Math.floor(hRaw);
+                var hMin        = Math.round((hRaw - hInt) * 60);
+                var hoursStr    = m.hours > 0 ? (hInt + 'h ' + hMin + 'm') : '0h 0m';
 
                 out += '<tr class="' + rowClass + '">';
                 out += '<td class="perf-sl-col">' + (idx + 1) + '</td>';

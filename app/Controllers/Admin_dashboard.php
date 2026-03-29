@@ -465,12 +465,18 @@ class Admin_dashboard extends Security_Controller
                 ];
             }
 
-            // Team performance = avg util_pct of members who logged hours
-            // On weekends: members with no log are simply absent (not "missing"),
-            // so only count members who actually logged to keep the score fair.
-            $perf_members = array_filter($members_data, function($m) use ($is_working_day) {
-                if ($m['override'] === 'leave') return false;         // excused leave
-                if (!$is_working_day && !$m['has_log']) return false; // weekend no-show → skip
+            // Team performance rules:
+            // - "missing log"          → util=0, INCLUDED (penalises team score)
+            // - "on leave" (any type)  → EXCLUDED (absence excused, doesn't penalise)
+            // - logged hours           → actual util included
+            $perf_members = array_filter($members_data, function($m) {
+                $c = $m['comment'];
+                // Exclude all leave variants
+                if ($m['override'] === 'leave')   return false; // admin-marked leave
+                if ($c === 'on leave')             return false; // has real leave record + log
+                if ($c === 'on leave (admin)')     return false; // admin override
+                // Missing log + leave → treat as missing (still penalises)
+                // Include logged members and plain missing log members
                 return true;
             });
             $count     = count($perf_members);
