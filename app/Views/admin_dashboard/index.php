@@ -64,6 +64,16 @@
                                     </div>
                                 </div>
 
+                                <!-- Search bar -->
+                                <div class="tab-search-bar">
+                                    <div class="tab-search-wrap">
+                                        <svg class="tab-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                        <input type="text" id="pp-search" class="tab-search-input" placeholder="Search projects…" autocomplete="off">
+                                        <button id="pp-search-clear" class="tab-search-clear" style="display:none;" title="Clear">&times;</button>
+                                    </div>
+                                    <span id="pp-count" class="tab-search-count"></span>
+                                </div>
+
                                 <div id="pp-list"></div>
                             </div>
                         </div>
@@ -92,6 +102,17 @@
                                         <span class="ru-leg"><span style="color:#ef4444;font-weight:700;">●</span> Over budget</span>
                                     </div>
                                 </div>
+
+                                <!-- Search bar -->
+                                <div class="tab-search-bar">
+                                    <div class="tab-search-wrap">
+                                        <svg class="tab-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                        <input type="text" id="ru-search" class="tab-search-input" placeholder="Search projects…" autocomplete="off">
+                                        <button id="ru-search-clear" class="tab-search-clear" style="display:none;" title="Clear">&times;</button>
+                                    </div>
+                                    <span id="ru-count" class="tab-search-count"></span>
+                                </div>
+
                                 <div id="ru-list"></div>
                             </div>
                         </div>
@@ -734,6 +755,20 @@
 
 @media (max-width:1100px) { #ru-list { grid-template-columns:repeat(2,1fr); } }
 @media (max-width:700px)  { #ru-list { grid-template-columns:1fr; padding:12px; } }
+
+/* ── Shared Tab Search Bar ── */
+.tab-search-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 24px; border-bottom:1px solid #e2e8f0; background:#fafafa; flex-wrap:wrap; }
+.tab-search-wrap { display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 12px; flex:1; max-width:360px; transition:border-color .2s,box-shadow .2s; }
+.tab-search-wrap:focus-within { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.12); }
+.tab-search-icon { color:#94a3b8; flex-shrink:0; }
+.tab-search-input { border:none; outline:none; background:transparent; font-size:13px; color:#334155; width:100%; }
+.tab-search-input::placeholder { color:#cbd5e1; }
+.tab-search-clear { border:none; background:none; cursor:pointer; color:#94a3b8; font-size:16px; line-height:1; padding:0 2px; transition:color .2s; }
+.tab-search-clear:hover { color:#ef4444; }
+.tab-search-count { font-size:11.5px; color:#94a3b8; white-space:nowrap; font-weight:500; }
+
+/* Hidden card when filtered out */
+.pp-card.pp-hidden, .ru-card.pp-hidden { display:none; }
 </style>
 
 <!-- Load Chart.js from CDN -->
@@ -1519,7 +1554,7 @@ function markPerfOverride(userId, reportDate, overrideType) {
                     + '</div>';
             }
 
-            html += '<div class="' + cardCls + '">'
+            html += '<div class="' + cardCls + '" data-title="' + esc(p.project_title) + '">'
                 + '<div class="pp-card-header">'
                 + '<div class="pp-project-name"><a href="<?php echo get_uri("projects/view/"); ?>' + p.project_id + '" target="_blank">' + esc(p.project_title) + '</a></div>'
                 + '<div class="pp-badges">' + stBadge + dlBadge + rdBadge + incBadge + '</div>'
@@ -1529,6 +1564,7 @@ function markPerfOverride(userId, reportDate, overrideType) {
                 + '</div>';
         });
         list.innerHTML = html;
+        if (typeof window['_searchRefresh_pp-search'] === 'function') window['_searchRefresh_pp-search']();
     }
 
     function esc(str) {
@@ -1609,7 +1645,7 @@ function markPerfOverride(userId, reportDate, overrideType) {
                     + '</tr>';
             });
 
-            html += '<div class="ru-card">'
+            html += '<div class="ru-card" data-title="' + esc(proj.project_title) + '">'
                 + '<div class="ru-card-head">'
                 +   '<div class="ru-card-title" title="' + esc(proj.project_title) + '"><a href="<?php echo get_uri("projects/view/"); ?>' + proj.project_id + '" target="_blank">' + esc(proj.project_title) + '</a></div>'
                 +   (proj.status_label ? '<span class="ru-card-status">' + esc(proj.status_label) + '</span>' : '')
@@ -1627,6 +1663,7 @@ function markPerfOverride(userId, reportDate, overrideType) {
         });
 
         list.innerHTML = html;
+        if (typeof window['_searchRefresh_ru-search'] === 'function') window['_searchRefresh_ru-search']();
     }
 
     function esc(str) {
@@ -1642,6 +1679,56 @@ function markPerfOverride(userId, reportDate, overrideType) {
                 loadResourceUtilization();
             });
         }
+    });
+})();
+</script>
+
+<script type="text/javascript">
+/* ── Shared live-search for Project Progress & Resource Utilization tabs ── */
+(function() {
+    function initTabSearch(inputId, clearId, listId, countId, cardClass) {
+        var input = document.getElementById(inputId);
+        var clearBtn = document.getElementById(clearId);
+        var countEl = document.getElementById(countId);
+        if (!input) return;
+
+        function doFilter() {
+            var q = input.value.trim().toLowerCase();
+            var list = document.getElementById(listId);
+            if (!list) return;
+            var cards = list.querySelectorAll('.' + cardClass);
+            var visible = 0;
+            cards.forEach(function(card) {
+                var title = (card.getAttribute('data-title') || '').toLowerCase();
+                var show = !q || title.indexOf(q) !== -1;
+                card.classList.toggle('pp-hidden', !show);
+                if (show) visible++;
+            });
+            if (clearBtn) clearBtn.style.display = q ? 'inline' : 'none';
+            if (countEl) {
+                countEl.textContent = q
+                    ? visible + ' of ' + cards.length + ' project' + (cards.length !== 1 ? 's' : '')
+                    : cards.length + ' project' + (cards.length !== 1 ? 's' : '');
+            }
+        }
+
+        input.addEventListener('input', doFilter);
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                input.value = '';
+                doFilter();
+                input.focus();
+            });
+        }
+
+        // Expose so render functions can call it after populating cards
+        window['_searchRefresh_' + inputId] = doFilter;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initTabSearch('pp-search', 'pp-search-clear', 'pp-list', 'pp-count', 'pp-card');
+        initTabSearch('ru-search', 'ru-search-clear', 'ru-list', 'ru-count', 'ru-card');
     });
 })();
 </script>
