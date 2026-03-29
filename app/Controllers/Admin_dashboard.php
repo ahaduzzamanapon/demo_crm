@@ -167,6 +167,123 @@ class Admin_dashboard extends Security_Controller
         ]);
     }
 
+    // ─── Resource Utilization ──────────────────────────────────────────────────
+
+    public function get_resource_utilization()
+    {
+        $this->access_only_team_members();
+
+        $db = \Config\Database::connect();
+
+        $projects_table  = $db->prefixTable('projects');
+        $tasks_table     = $db->prefixTable('tasks');
+        $timesheet_table = $db->prefixTable('project_time');
+        $users_table     = $db->prefixTable('users');
+        $ps_table        = $db->prefixTable('project_status');
+
+        // Disable strict SQL mode for GROUP BY aggregations
+        try { $db->query("SET sql_mode = ''"); } catch (\Exception $e) {}
+
+        // 1. Estimated hours per project per assigned member (from tasks)
+        $est_rows = $db->query(
+            "SELECT t.project_id,
+                    t.assigned_to AS user_id,
+                    SUM(IFNULL(t.estimated_time, 0)) AS est_hours
+             FROM $tasks_table t
+             WHERE t.deleted = 0
+               AND t.project_id > 0
+               AND t.assigned_to > 0
+             GROUP BY t.project_id, t.assigned_to"
+        )->getResult();
+
+        // 2. Time spent per project per member (from timesheets)
+        $spent_rows = $db->query(
+            "SELECT pt.project_id,
+                    pt.user_id,
+                    SUM(TIMESTAMPDIFF(SECOND, pt.start_time, pt.end_time)) / 3600 AS spent_hours
+             FROM $timesheet_table pt
+             WHERE pt.deleted = 0
+               AND pt.end_time IS NOT NULL
+               AND pt.end_time != '0000-00-00 00:00:00'
+             GROUP BY pt.project_id, pt.user_id"
+        )->getResult();
+
+        // 3. User names
+        $user_rows = $db->query(
+            "SELECT id, CONCAT(first_name, ' ', last_name) AS full_name, image
+             FROM $users_table
+             WHERE deleted = 0 AND user_type = 'staff'"
+        )->getResult();
+
+        $user_map = [];
+        foreach ($user_rows as $u) {
+            $user_map[(int)$u->id] = $u->full_name;
+        }
+
+        // 4. All active projects (ordered by title)
+        $projects = $db->query(
+            "SELECT p.id, p.title, ps.title AS status_label
+             FROM $projects_table p
+             LEFT JOIN $ps_table ps ON ps.id = p.status_id
+             WHERE p.deleted = 0
+             ORDER BY p.title ASC"
+        )->getResult();
+
+        // Build lookup maps  project_id → user_id → est/spent
+        $est_map   = [];   // [project_id][user_id] = est_hours
+        $spent_map = [];   // [project_id][user_id] = spent_hours
+
+        foreach ($est_rows as $r) {
+            $est_map[(int)$r->project_id][(int)$r->user_id] = (float)$r->est_hours;
+        }
+        foreach ($spent_rows as $r) {
+            $spent_map[(int)$r->project_id][(int)$r->user_id] = round((float)$r->spent_hours, 2);
+        }
+
+        $output = [];
+        foreach ($projects as $proj) {
+            $pid      = (int)$proj->id;
+            $members  = [];
+
+            // All users that appear in either est or spent for this project
+            $user_ids = array_unique(array_merge(
+                array_keys($est_map[$pid]   ?? []),
+                array_keys($spent_map[$pid] ?? [])
+            ));
+
+            if (empty($user_ids)) continue;
+
+            foreach ($user_ids as $uid) {
+                $est   = round($est_map[$pid][$uid]   ?? 0, 2);
+                $spent = round($spent_map[$pid][$uid] ?? 0, 2);
+                $rem   = round($est - $spent, 2);
+
+                $members[] = [
+                    'user_id'   => $uid,
+                    'name'      => $user_map[$uid] ?? "User #$uid",
+                    'est'       => $est,
+                    'spent'     => $spent,
+                    'remaining' => $rem,
+                ];
+            }
+
+            // Sort by name
+            usort($members, fn($a, $b) => strcmp($a['name'], $b['name']));
+
+            $output[] = [
+                'project_id'   => $pid,
+                'project_title'=> $proj->title,
+                'status_label' => $proj->status_label ?? 'Active',
+                'members'      => $members,
+            ];
+        }
+
+        return $this->response->setJSON([
+            'projects' => $output,
+            'total'    => count($output),
+        ]);
+    }
+
     // ─── Helper: ensure override table exists ──────────────────────────────────
 
     private function ensureOverrideTable($db)

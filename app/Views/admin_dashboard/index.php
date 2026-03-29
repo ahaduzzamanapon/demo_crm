@@ -71,11 +71,28 @@
 
                     <!-- Tab 2: Resource Utilization Report -->
                     <div class="tab-pane fade" id="resource-utilization" role="tabpanel" aria-labelledby="tab-resource-utilization">
-                        <div class="admin-tab-inner">
-                            <div class="admin-tab-placeholder">
-                                <i data-feather="users" class="placeholder-icon"></i>
-                                <h4 class="placeholder-title">Resource Utilization Report</h4>
-                                <p class="placeholder-text">Resource allocation and utilization data will be displayed here.</p>
+                        <div class="admin-tab-inner" id="ru-tab-inner">
+
+                            <!-- Loading -->
+                            <div id="ru-loading" class="ru-loading-state">
+                                <div class="ru-spinner"></div>
+                                <p>Loading resource data…</p>
+                            </div>
+
+                            <!-- Content -->
+                            <div id="ru-content" style="display:none;">
+                                <div class="ru-header-row">
+                                    <div>
+                                        <h3 class="ru-main-title">Resource Utilization Report</h3>
+                                        <p class="ru-subtitle">Estimated vs. actual time spent per member per project</p>
+                                    </div>
+                                    <div class="ru-legend">
+                                        <span class="ru-leg"><span style="color:#16a34a;font-weight:700;">●</span> On track</span>
+                                        <span class="ru-leg"><span style="color:#f59e0b;font-weight:700;">●</span> Near limit</span>
+                                        <span class="ru-leg"><span style="color:#ef4444;font-weight:700;">●</span> Over budget</span>
+                                    </div>
+                                </div>
+                                <div id="ru-list"></div>
                             </div>
                         </div>
                     </div>
@@ -671,6 +688,52 @@
 @media (max-width:700px)  { #pp-list { grid-template-columns:1fr; padding:12px; }
     .pp-card-header { flex-direction:column; align-items:flex-start; }
 }
+
+/* ════════════════════════════════════════════════
+   RESOURCE UTILIZATION TAB
+   ════════════════════════════════════════════════ */
+.ru-loading-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:#94a3b8; }
+.ru-spinner { width:38px; height:38px; border:4px solid #e2e8f0; border-top-color:#6366f1; border-radius:50%; animation:pp-spin 0.8s linear infinite; margin-bottom:12px; }
+
+.ru-header-row { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; padding:20px 24px 14px; border-bottom:1px solid #e2e8f0; }
+.ru-main-title  { font-size:17px; font-weight:700; color:#1e293b; margin:0; }
+.ru-subtitle    { font-size:12px; color:#94a3b8; margin:3px 0 0; }
+.ru-legend { display:flex; gap:12px; flex-wrap:wrap; align-items:center; font-size:11.5px; color:#64748b; }
+.ru-leg { display:flex; align-items:center; gap:4px; }
+
+/* Grid */
+#ru-list { padding:16px 24px; display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+
+/* Project card */
+.ru-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:box-shadow 0.2s; }
+.ru-card:hover { box-shadow:0 4px 18px rgba(0,0,0,0.07); }
+
+.ru-card-head { padding:11px 14px 8px; border-bottom:1px solid #f1f5f9; }
+.ru-card-title { font-size:13px; font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ru-card-title a { color:inherit; text-decoration:none; }
+.ru-card-title a:hover { color:#6366f1; }
+.ru-card-status { font-size:10px; font-weight:600; color:#7c3aed; background:#ede9fe; padding:1px 7px; border-radius:20px; display:inline-block; margin-top:3px; }
+
+/* Table inside card */
+.ru-table { width:100%; border-collapse:collapse; font-size:11.5px; }
+.ru-table th { padding:6px 10px; background:#f8fafc; color:#64748b; font-weight:700; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #e2e8f0; text-align:right; }
+.ru-table th:first-child { text-align:left; }
+.ru-table td { padding:6px 10px; border-bottom:1px solid #f1f5f9; color:#334155; vertical-align:middle; text-align:right; }
+.ru-table td:first-child { text-align:left; font-weight:600; color:#1e293b; }
+.ru-table tr:last-child td { border-bottom:none; }
+.ru-table tr:hover td { background:#fafafa; }
+
+/* Remaining cell color coding */
+.ru-rem-ok   { color:#16a34a; font-weight:700; }
+.ru-rem-warn { color:#f59e0b; font-weight:700; }
+.ru-rem-over { color:#ef4444; font-weight:700; }
+
+/* Spent bar mini */
+.ru-bar-mini { height:4px; border-radius:2px; background:#e2e8f0; margin-top:3px; overflow:hidden; }
+.ru-bar-mini-fill { height:100%; border-radius:2px; transition:width 0.4s; }
+
+@media (max-width:1100px) { #ru-list { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:700px)  { #ru-list { grid-template-columns:1fr; padding:12px; } }
 </style>
 
 <!-- Load Chart.js from CDN -->
@@ -1480,6 +1543,103 @@ function markPerfOverride(userId, reportDate, overrideType) {
                 if (ppLoaded) return;
                 ppLoaded = true;
                 loadProjectProgress();
+            });
+        }
+    });
+})();
+</script>
+
+<script type="text/javascript">
+(function() {
+    var ruLoaded = false;
+
+    function loadResourceUtilization() {
+        var loading = document.getElementById('ru-loading');
+        var content = document.getElementById('ru-content');
+        if (!loading || !content) return;
+        loading.style.display = 'flex';
+        content.style.display = 'none';
+
+        $.ajax({
+            url: '<?php echo get_uri("admin_dashboard/get_resource_utilization"); ?>',
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                renderResourceUtilization(data.projects || []);
+            },
+            error: function() {
+                loading.innerHTML = '<p style="color:#ef4444;padding:20px;">Failed to load resource data. Please refresh.</p>';
+            }
+        });
+    }
+
+    function renderResourceUtilization(projects) {
+        var list = document.getElementById('ru-list');
+        if (!projects || projects.length === 0) {
+            list.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8;grid-column:1/-1;">No project resource data found.</div>';
+            return;
+        }
+
+        var html = '';
+        projects.forEach(function(proj) {
+            var rows = '';
+            proj.members.forEach(function(m) {
+                var remCls = 'ru-rem-ok';
+                if (m.remaining < 0) remCls = 'ru-rem-over';
+                else if (m.est > 0 && (m.spent / m.est) >= 0.8) remCls = 'ru-rem-warn';
+
+                // Mini progress bar: spent/est ratio capped at 100%
+                var pct = m.est > 0 ? Math.min(100, Math.round((m.spent / m.est) * 100)) : 0;
+                var barColor = remCls === 'ru-rem-over' ? '#ef4444' : (remCls === 'ru-rem-warn' ? '#f59e0b' : '#22c55e');
+
+                var remLabel = m.remaining < 0
+                    ? '<span class="' + remCls + '">' + m.remaining + 'h <small>(over)</small></span>'
+                    : '<span class="' + remCls + '">' + m.remaining + 'h</span>';
+
+                rows += '<tr>'
+                    + '<td title="' + esc(m.name) + '">' + esc(m.name) + '</td>'
+                    + '<td>' + m.est + 'h</td>'
+                    + '<td style="color:#3b82f6;font-weight:600;">'
+                    +   m.spent + 'h'
+                    +   '<div class="ru-bar-mini"><div class="ru-bar-mini-fill" style="width:' + pct + '%;background:' + barColor + ';"></div></div>'
+                    + '</td>'
+                    + '<td>' + remLabel + '</td>'
+                    + '</tr>';
+            });
+
+            html += '<div class="ru-card">'
+                + '<div class="ru-card-head">'
+                +   '<div class="ru-card-title" title="' + esc(proj.project_title) + '"><a href="<?php echo get_uri("projects/view/"); ?>' + proj.project_id + '" target="_blank">' + esc(proj.project_title) + '</a></div>'
+                +   (proj.status_label ? '<span class="ru-card-status">' + esc(proj.status_label) + '</span>' : '')
+                + '</div>'
+                + '<table class="ru-table">'
+                +   '<thead><tr>'
+                +     '<th>Member</th>'
+                +     '<th>Est. Hr</th>'
+                +     '<th>Spent</th>'
+                +     '<th>Remaining</th>'
+                +   '</tr></thead>'
+                +   '<tbody>' + rows + '</tbody>'
+                + '</table>'
+                + '</div>';
+        });
+
+        list.innerHTML = html;
+    }
+
+    function esc(str) {
+        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var tabLink = document.getElementById('tab-resource-utilization');
+        if (tabLink) {
+            tabLink.addEventListener('shown.bs.tab', function() {
+                if (ruLoaded) return;
+                ruLoaded = true;
+                loadResourceUtilization();
             });
         }
     });
