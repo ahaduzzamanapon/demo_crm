@@ -38,6 +38,135 @@ class Admin_dashboard extends Security_Controller
         ]);
     }
 
+    // ─── Project Progress ──────────────────────────────────────────────────────
+
+    public function get_project_progress()
+    {
+        $this->access_only_team_members();
+
+        $db = \Config\Database::connect();
+
+        $projects_table       = $db->prefixTable('projects');
+        $tasks_table          = $db->prefixTable('tasks');
+        $task_status_table    = $db->prefixTable('task_status');
+        $project_status_table = $db->prefixTable('project_status');
+
+        // Load all task statuses
+        $statuses = $db->query(
+            "SELECT id, key_name FROM $task_status_table WHERE deleted=0"
+        )->getResult();
+        $status_map = [];
+        foreach ($statuses as $s) {
+            $status_map[(int)$s->id] = strtolower(trim($s->key_name));
+        }
+
+        // All active (non-deleted) projects
+        $projects = $db->query(
+            "SELECT p.id, p.title, p.deadline, p.start_date,
+                    ps.title AS status_label
+             FROM $projects_table p
+             LEFT JOIN $project_status_table ps ON ps.id = p.status_id
+             WHERE p.deleted=0
+             ORDER BY p.deadline IS NULL ASC, p.deadline ASC"
+        )->getResult();
+
+        $today  = new \DateTime('today');
+        $output = [];
+
+        foreach ($projects as $proj) {
+            $pid = (int)$proj->id;
+
+            // Task counts per status with avg estimated_time
+            $task_rows = $db->query(
+                "SELECT status_id,
+                        COUNT(*) AS cnt,
+                        AVG(NULLIF(estimated_time, 0)) AS avg_est
+                 FROM $tasks_table
+                 WHERE deleted=0 AND project_id=$pid AND parent_task_id=0
+                 GROUP BY status_id"
+            )->getResult();
+
+            $T  = 0; $Dq = 0; $Dp = 0; $Qp = 0;
+            $weighted_est = 0; $est_count = 0;
+
+            foreach ($task_rows as $tr) {
+                $cnt = (int)$tr->cnt;
+                $T  += $cnt;
+                $key = $status_map[(int)$tr->status_id] ?? '';
+
+                if ($tr->avg_est > 0) {
+                    $weighted_est += $tr->avg_est * $cnt;
+                    $est_count    += $cnt;
+                }
+
+                if (in_array($key, ['done', 'completed', 'closed', 'qa_completed'])) {
+                    $Dq += $cnt;
+                } elseif (in_array($key, ['in_progress', 'development', 'dev_in_progress', 'doing'])) {
+                    $Dp += $cnt;
+                } elseif (strpos($key, 'qa') !== false || $key === 'testing' || $key === 'review') {
+                    $Qp += $cnt;
+                }
+            }
+
+            if ($T === 0) continue;
+
+            $H = ($est_count > 0) ? ($weighted_est / $est_count) : 1;
+
+            $done_pct      = round(($Dq / $T) * 100, 1);
+            $dev_pct       = round(($Dp / $T) * 100, 1);
+            $qa_pct        = round(($Qp / $T) * 100, 1);
+            $remaining_pct = max(0, 100 - $done_pct - $dev_pct - $qa_pct);
+
+            // Time inconsistency logic (only if deadline set)
+            $deadline_raw = $proj->deadline ?? '';
+            $has_deadline = (!empty($deadline_raw) && $deadline_raw !== '0000-00-00');
+            $RT           = $T - $Dq;   // remaining tasks
+
+            $deadline_dt     = null;
+            $RD              = null;
+            $is_overdue      = false;
+            $is_inconsistent = false;
+
+            if ($has_deadline) {
+                $deadline_dt     = new \DateTime($deadline_raw);
+                $diff            = $today->diff($deadline_dt);
+                $RD              = ($deadline_dt >= $today) ? (int)$diff->days : 0;
+                $is_overdue      = ($deadline_dt < $today);
+                $is_inconsistent = (!$is_overdue && $RD <= 2 && ($RT * $H) > ($RD * 8));
+            }
+
+            $RH = round($RT * $H, 1);
+            $AH = $has_deadline ? ($RD * 8) : null;
+
+            $output[] = [
+                'project_id'      => $pid,
+                'project_title'   => $proj->title,
+                'deadline'        => $proj->deadline,
+                'status_label'    => $proj->status_label ?? 'Active',
+                'T'               => $T,
+                'Dq'              => $Dq,
+                'Dp'              => $Dp,
+                'Qp'              => $Qp,
+                'RT'              => $RT,
+                'RD'              => $RD,
+                'RH'              => $RH,
+                'AH'              => $AH,
+                'done_pct'        => $done_pct,
+                'dev_pct'         => $dev_pct,
+                'qa_pct'          => $qa_pct,
+                'remaining_pct'   => $remaining_pct,
+                'is_inconsistent' => $is_inconsistent,
+                'is_overdue'      => $is_overdue,
+                'avg_est_h'       => round($H, 2),
+            ];
+        }
+
+        return $this->response->setJSON([
+            'projects' => $output,
+            'total'    => count($output),
+        ]);
+    }
+
     // ─── Helper: ensure override table exists ──────────────────────────────────
 
     private function ensureOverrideTable($db)

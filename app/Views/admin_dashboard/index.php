@@ -40,11 +40,31 @@
 
                     <!-- Tab 1: Project Progress -->
                     <div class="tab-pane fade show active" id="project-progress" role="tabpanel" aria-labelledby="tab-project-progress">
-                        <div class="admin-tab-inner">
-                            <div class="admin-tab-placeholder">
-                                <i data-feather="bar-chart-2" class="placeholder-icon"></i>
-                                <h4 class="placeholder-title">Project Progress</h4>
-                                <p class="placeholder-text">Project progress charts and statistics will be displayed here.</p>
+                        <div class="admin-tab-inner" id="pp-tab-inner">
+
+                            <!-- Loading -->
+                            <div id="pp-loading" class="pp-loading-state">
+                                <div class="pp-spinner"></div>
+                                <p>Loading project data…</p>
+                            </div>
+
+                            <!-- Content area -->
+                            <div id="pp-content" style="display:none;">
+                                <div class="pp-header-row">
+                                    <div>
+                                        <h3 class="pp-main-title">Project Progress Overview</h3>
+                                        <p class="pp-subtitle">Per-project task completion with time inconsistency alerts</p>
+                                    </div>
+                                    <div class="pp-legend">
+                                        <span class="pp-leg-item"><span class="pp-leg-dot" style="background:#22c55e;"></span>Done</span>
+                                        <span class="pp-leg-item"><span class="pp-leg-dot" style="background:#3b82f6;"></span>In Dev</span>
+                                        <span class="pp-leg-item"><span class="pp-leg-dot" style="background:#a78bfa;"></span>QA</span>
+                                        <span class="pp-leg-item"><span class="pp-leg-dot" style="background:#e2e8f0;"></span>Remaining</span>
+                                        <span class="pp-leg-item"><span class="pp-leg-dot" style="background:#ef4444;"></span>Inconsistency</span>
+                                    </div>
+                                </div>
+
+                                <div id="pp-list"></div>
                             </div>
                         </div>
                     </div>
@@ -578,6 +598,79 @@
     @media (max-width: 900px) {
         .billable-stat-cards { grid-template-columns: repeat(2, 1fr); }
     }
+
+/* ════════════════════════════════════════════════
+   PROJECT PROGRESS TAB
+   ════════════════════════════════════════════════ */
+/* Loading */
+.pp-loading-state { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:#94a3b8; }
+.pp-spinner { width:38px; height:38px; border:4px solid #e2e8f0; border-top-color:#6366f1; border-radius:50%; animation:pp-spin 0.8s linear infinite; margin-bottom:12px; }
+@keyframes pp-spin { to { transform: rotate(360deg); } }
+
+/* Header */
+.pp-header-row { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; padding:20px 24px 12px; border-bottom:1px solid #e2e8f0; }
+.pp-main-title  { font-size:17px; font-weight:700; color:#1e293b; margin:0; }
+.pp-subtitle    { font-size:12px; color:#94a3b8; margin:3px 0 0; }
+.pp-legend { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.pp-leg-item { display:flex; align-items:center; gap:5px; font-size:11.5px; color:#64748b; font-weight:500; }
+.pp-leg-dot  { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+
+/* Project list — 3 cards per row */
+#pp-list { padding:16px 24px; display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+
+/* Project Card */
+.pp-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:box-shadow 0.2s; }
+.pp-card:hover { box-shadow:0 4px 18px rgba(0,0,0,0.07); }
+.pp-card.pp-inconsistent { border-color:#fca5a5; box-shadow:0 0 0 2px rgba(239,68,68,0.12); }
+.pp-card.pp-overdue      { border-color:#fed7aa; }
+
+.pp-card-header { display:flex; justify-content:space-between; align-items:center; padding:13px 18px 8px; flex-wrap:wrap; gap:8px; }
+.pp-project-name { font-size:14px; font-weight:700; color:#1e293b; }
+.pp-project-name a { color:inherit; text-decoration:none; }
+.pp-project-name a:hover { color:#6366f1; }
+
+.pp-badges { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.pp-badge { font-size:10.5px; font-weight:600; padding:2px 9px; border-radius:20px; }
+.pp-badge-deadline   { background:#f1f5f9; color:#475569; }
+.pp-badge-overdue    { background:#fee2e2; color:#dc2626; }
+.pp-badge-status     { background:#ede9fe; color:#7c3aed; }
+.pp-badge-inconsist  { background:#ef4444; color:#fff; animation:pp-pulse 1.4s ease-in-out infinite; }
+@keyframes pp-pulse  { 0%,100%{opacity:1} 50%{opacity:0.65} }
+.pp-badge-rd         { background:#fef3c7; color:#b45309; font-size:10px; }
+
+/* Stacked progress bar */
+.pp-bar-wrap { padding:4px 18px 10px; }
+.pp-bar      { height:18px; border-radius:9px; background:#f1f5f9; overflow:hidden; display:flex; border:1px solid #e2e8f0; }
+.pp-bar-seg  { height:100%; transition:width 0.5s ease; position:relative; }
+.pp-bar-seg:first-child { border-radius:9px 0 0 9px; }
+.pp-bar-seg:last-child  { border-radius:0 9px 9px 0; }
+.pp-bar-seg-done  { background:linear-gradient(90deg,#16a34a,#22c55e); }
+.pp-bar-seg-dev   { background:linear-gradient(90deg,#2563eb,#3b82f6); }
+.pp-bar-seg-qa    { background:linear-gradient(90deg,#7c3aed,#a78bfa); }
+.pp-bar-seg-rem   { background:#e2e8f0; }
+.pp-bar-seg-inc   { background:linear-gradient(90deg,#dc2626,#ef4444); animation:pp-pulse 1.4s ease-in-out infinite; }
+
+/* Tooltip on hover */
+.pp-bar-seg[title] { cursor:help; }
+
+/* Task chips row */
+.pp-chips { display:flex; flex-wrap:wrap; gap:6px; padding:0 18px 13px; }
+.pp-chip  { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; }
+.pp-chip-total  { background:#f1f5f9; color:#475569; }
+.pp-chip-done   { background:#dcfce7; color:#16a34a; }
+.pp-chip-dev    { background:#dbeafe; color:#2563eb; }
+.pp-chip-qa     { background:#ede9fe; color:#7c3aed; }
+.pp-chip-rem    { background:#f1f5f9; color:#64748b; }
+.pp-chip-rh     { background:#fef9c3; color:#92400e; }
+
+/* Inconsistency detail row */
+.pp-inconsist-row { margin:0 18px 12px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:8px 12px; font-size:11.5px; color:#dc2626; display:flex; align-items:center; gap:8px; }
+.pp-inconsist-row svg { flex-shrink:0; }
+
+@media (max-width:1100px) { #pp-list { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:700px)  { #pp-list { grid-template-columns:1fr; padding:12px; }
+    .pp-card-header { flex-direction:column; align-items:flex-start; }
+}
 </style>
 
 <!-- Load Chart.js from CDN -->
@@ -1274,6 +1367,120 @@ function markPerfOverride(userId, reportDate, overrideType) {
         var btn = document.getElementById('perf-generate-btn');
         if (btn) {
             btn.addEventListener('click', loadBestPerformedDays);
+        }
+    });
+})();
+</script>
+
+<script type="text/javascript">
+(function() {
+    var ppLoaded = false;
+
+    function loadProjectProgress() {
+        var loading = document.getElementById('pp-loading');
+        var content = document.getElementById('pp-content');
+        if (!loading || !content) return;
+        loading.style.display = 'flex';
+        content.style.display = 'none';
+
+        $.ajax({
+            url: '<?php echo get_uri("admin_dashboard/get_project_progress"); ?>',
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                renderProjectProgress(data.projects || []);
+            },
+            error: function() {
+                loading.innerHTML = '<p style="color:#ef4444;padding:20px;">Failed to load. Please refresh.</p>';
+            }
+        });
+    }
+
+    function renderProjectProgress(projects) {
+        var list = document.getElementById('pp-list');
+        if (!projects || projects.length === 0) {
+            list.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8;">No active projects with deadlines found.</div>';
+            return;
+        }
+        var html = '';
+        projects.forEach(function(p) {
+            var cardCls = 'pp-card' + (p.is_inconsistent ? ' pp-inconsistent' : (p.is_overdue ? ' pp-overdue' : ''));
+            var dlBadge = !p.deadline
+                ? '<span class="pp-badge" style="background:#f1f5f9;color:#94a3b8;">No deadline</span>'
+                : (p.is_overdue
+                    ? '<span class="pp-badge pp-badge-overdue">&#9888; Overdue</span>'
+                    : '<span class="pp-badge pp-badge-deadline">&#128197; ' + esc(p.deadline) + '</span>');
+            var rdBadge = (p.RD === null || p.RD === undefined)
+                ? ''
+                : (p.is_overdue
+                    ? '<span class="pp-badge pp-badge-overdue">Past due</span>'
+                    : '<span class="pp-badge pp-badge-rd">' + p.RD + ' day' + (p.RD!=1?'s':'') + ' left</span>');
+            var incBadge = p.is_inconsistent ? '<span class="pp-badge pp-badge-inconsist">&#128308; Inconsistency</span>' : '';
+            var stBadge  = p.status_label ? '<span class="pp-badge pp-badge-status">' + esc(p.status_label) + '</span>' : '';
+
+            // Stacked bar — overdue: remaining turns red; inconsistent: remaining pulses red
+            var barBg = p.is_overdue ? 'background:#fee2e2;' : '';
+            var bar = '<div class="pp-bar" style="' + barBg + '">';
+            if (p.done_pct > 0) bar += '<div class="pp-bar-seg pp-bar-seg-done" style="width:' + p.done_pct + '%;" title="Done: ' + p.done_pct + '%"></div>';
+            if (p.dev_pct  > 0) bar += '<div class="pp-bar-seg pp-bar-seg-dev"  style="width:' + p.dev_pct  + '%;" title="Dev: '  + p.dev_pct  + '%"></div>';
+            if (p.qa_pct   > 0) bar += '<div class="pp-bar-seg pp-bar-seg-qa"   style="width:' + p.qa_pct   + '%;" title="QA: '   + p.qa_pct   + '%"></div>';
+            if (p.remaining_pct > 0) {
+                var remSeg = p.is_inconsistent ? 'pp-bar-seg-inc' : (p.is_overdue ? 'pp-bar-seg-inc' : 'pp-bar-seg-rem');
+                bar += '<div class="pp-bar-seg ' + remSeg + '" style="width:' + p.remaining_pct + '%;" title="Remaining: ' + p.remaining_pct + '%"></div>';
+            }
+            bar += '</div>';
+
+            var pctRow = '<div style="display:flex;gap:10px;font-size:10.5px;margin-top:5px;flex-wrap:wrap;">'
+                + '<span style="color:#16a34a;font-weight:600;">Done ' + p.done_pct + '%</span>'
+                + '<span style="color:#2563eb;font-weight:600;">Dev ' + p.dev_pct + '%</span>'
+                + '<span style="color:#7c3aed;font-weight:600;">QA ' + p.qa_pct + '%</span>'
+                + '<span style="color:#94a3b8;">Rem ' + p.remaining_pct + '%</span>'
+                + '</div>';
+
+            var chips = '<div class="pp-chips">'
+                + '<span class="pp-chip pp-chip-total">T: ' + p.T + '</span>'
+                + '<span class="pp-chip pp-chip-done">Done: ' + p.Dq + '</span>'
+                + '<span class="pp-chip pp-chip-dev">Dev: ' + p.Dp + '</span>'
+                + '<span class="pp-chip pp-chip-qa">QA: ' + p.Qp + '</span>'
+                + '<span class="pp-chip pp-chip-rem">Left: ' + p.RT + '</span>'
+                + (p.avg_est_h > 0 ? '<span class="pp-chip pp-chip-rh">RH ' + p.RH + 'h / AH ' + p.AH + 'h</span>' : '')
+                + '</div>';
+
+            var incRow = '';
+            if (p.is_inconsistent) {
+                incRow = '<div class="pp-inconsist-row">'
+                    + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+                    + '<strong>Inconsistency:</strong>&nbsp;' + p.RT + ' task(s) need ~' + p.RH + 'h but only ' + p.AH + 'h available (' + p.RD + ' days x 8h).'
+                    + '</div>';
+            }
+
+            html += '<div class="' + cardCls + '">'
+                + '<div class="pp-card-header">'
+                + '<div class="pp-project-name"><a href="<?php echo get_uri("projects/view/"); ?>' + p.project_id + '" target="_blank">' + esc(p.project_title) + '</a></div>'
+                + '<div class="pp-badges">' + stBadge + dlBadge + rdBadge + incBadge + '</div>'
+                + '</div>'
+                + '<div class="pp-bar-wrap">' + bar + pctRow + '</div>'
+                + chips + incRow
+                + '</div>';
+        });
+        list.innerHTML = html;
+    }
+
+    function esc(str) {
+        return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadProjectProgress();
+        var tab = document.getElementById('tab-project-progress');
+        if (tab) {
+            tab.addEventListener('shown.bs.tab', function() {
+                if (ppLoaded) return;
+                ppLoaded = true;
+                loadProjectProgress();
+            });
         }
     });
 })();
