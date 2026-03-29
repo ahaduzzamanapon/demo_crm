@@ -41,6 +41,12 @@ $lang["can_access_admin_dashboard"] = "Can access Admin Dashboard";
 $lang["billable_type"] = "Billable Type";
 $lang["billable"] = "Billable";
 $lang["non_billable"] = "Non Billable";
+$lang["share"] = "Share";
+$lang["share_with"] = "Share With";
+$lang["select_team_members_to_share"] = "Select team members who can access this file.";
+$lang["shared_file_note"] = "Shared members can view and download this file.";
+$lang["no_team_members_found"] = "No other team members found.";
 return $lang;
+
 
 

@@ -279,9 +279,11 @@ if ($view_type) {
                     var deleteMenu = '<?php echo js_anchor('<i data-feather="trash" class="icon-16 mr10"></i>' . app_lang('delete'), array('title' => app_lang('delete'), 'class' => 'dropdown-item', 'data-id' => '', 'data-action-url' => get_uri($controller_slag . '/delete_folder'), 'data-action' => 'delete-confirmation', 'data-reload-on-success' => true)); ?>';
 
                     var infoMenu = '<div class="dropdown-item clickable item-info-button" data-type="folder" data-id=""><i data-feather="info" class="icon-16 mr10"></i><?php echo app_lang('info'); ?></div>';
+
+                    var shareFolderMenu = '<?php echo modal_anchor(get_uri($controller_slag . '/folder_permissions_modal_form'), '<i data-feather="share-2" class="icon-16 mr10"></i>' . app_lang('share'), array('title' => app_lang('share'), 'class' => 'dropdown-item', 'data-post-id' => '')); ?>';
                 }
 
-                $('#folder-context-menu').html('').append(exploreMenu).append($(addFavourite).attr('data-action-url', addFavouriteUrl)).append($(removeFavourite).attr('data-action-url', removeFavouriteUrl)).append($(renameMenu).attr('data-post-id', dataId).attr('data-title', '<?php echo app_lang('rename_folder'); ?>' + ': ' + folderName)).append($(moveMenu).attr('data-post-folder_id', dataId).attr('data-title', '<?php echo app_lang('move_folder'); ?>' + ': ' + folderName).attr('data-post-context', context).attr('data-post-context_id', contextId)).append($(deleteMenu).attr('data-id', dataId)).append($(infoMenu).attr('data-id', dataId));
+                $('#folder-context-menu').html('').append(exploreMenu).append($(addFavourite).attr('data-action-url', addFavouriteUrl)).append($(removeFavourite).attr('data-action-url', removeFavouriteUrl)).append($(renameMenu).attr('data-post-id', dataId).attr('data-title', '<?php echo app_lang('rename_folder'); ?>' + ': ' + folderName)).append($(moveMenu).attr('data-post-folder_id', dataId).attr('data-title', '<?php echo app_lang('move_folder'); ?>' + ': ' + folderName).attr('data-post-context', context).attr('data-post-context_id', contextId)).append($(deleteMenu).attr('data-id', dataId)).append($(infoMenu).attr('data-id', dataId)).append($(shareFolderMenu).attr('data-post-id', dataId).attr('data-title', '<?php echo app_lang('share'); ?>: ' + folderName));
 
                 //Change delete confirmation modal content for folder delation
                 var folderDetails = "<div class='mt15'><div class='d-flex'><div class='flex-shrink-0 me-3 icon-wrapper'><i data-feather='folder' class='icon-40 bold-folder-icon'></i></div><div class='w-100'><div>" + folderName + "</div><small class='text-off'>" + folderInfo + "</small></div></div></div>";
@@ -294,6 +296,11 @@ if ($view_type) {
 
                 var moveMenu = '',
                     deleteMenu = '';
+
+                var shareFileMenu = '';
+                if ("<?php echo $login_user->user_type ?>" == "staff") {
+                    shareFileMenu = '<?php echo modal_anchor(get_uri("file_manager/share_file_modal_form"), '<i data-feather="share-2" class="icon-16 mr10"></i>' . app_lang('share'), array('title' => app_lang('share'), 'class' => 'dropdown-item', 'data-post-id' => '')); ?>';
+                }
 
                 if (hasWritePermission && "<?php echo $login_user->user_type ?>" == "staff") {
                     moveMenu = '<?php echo modal_anchor(get_uri($controller_slag . '/move_folder_or_file_modal_form'), '<i data-feather="corner-down-right" class="icon-16 mr10"></i>' . app_lang('move'), array('title' => app_lang('move_file'), 'class' => 'dropdown-item', 'data-post-file_id' => '')); ?>';
@@ -308,7 +315,7 @@ if ($view_type) {
 
                 var infoMenu = '<div class="dropdown-item clickable item-info-button" data-type="file" data-id=""><i data-feather="info" class="icon-16 mr10"></i><?php echo app_lang('info'); ?></div>';
 
-                $('#folder-context-menu').html('').append(viewFileMenu).append($(moveMenu).attr('data-post-file_id', dataId).attr('data-post-context', context).attr('data-post-context_id', contextId).attr('data-post-parent_folder_id', parentId)).append($(deleteMenu).attr('data-id', dataId)).append(downloadMenu).append($(infoMenu).attr('data-id', dataId));
+                $('#folder-context-menu').html('').append(viewFileMenu).append($(moveMenu).attr('data-post-file_id', dataId).attr('data-post-context', context).attr('data-post-context_id', contextId).attr('data-post-parent_folder_id', parentId)).append($(deleteMenu).attr('data-id', dataId)).append(downloadMenu).append($(infoMenu).attr('data-id', dataId)).append($(shareFileMenu).attr('data-post-id', dataId).attr('data-title', '<?php echo app_lang('share'); ?>: ' + fileName));
 
                 //Change delete confirmation modal content for file delation
                 var fileDetails = "<div class='mt15'><div class='d-flex'><div class='flex-shrink-0 me-3 icon-wrapper'><i data-feather='file' class='icon-40 bold-file-icon'></i></div><div class='w-100'><div class='text-break'>" + fileName + "</div><small class='text-off'>" + fileSize + "</small></div></div></div>";

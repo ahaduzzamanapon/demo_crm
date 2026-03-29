@@ -67,11 +67,14 @@ class General_files_model extends Crud_model {
                 //in a folder in the file manager
                 $where = " AND $general_files_table.folder_id=$folder_id AND $general_files_table.context='global_files' ";
             } else {
-                //root in the file manager
-                if ($is_admin) {
-                    $where = " AND $general_files_table.folder_id<=0 AND $general_files_table.context='global_files' ";
-                } else {
-                    $where = " AND $general_files_table.context='dont_show_global_files' "; //don't show any root files for non admin users. 
+                //root in the file manager — non-admin staff see only their own + shared files
+                $where = " AND $general_files_table.folder_id<=0 AND $general_files_table.context='global_files' ";
+                if (!$is_admin) {
+                    $uploaded_by = $this->_get_clean_value($options, "uploaded_by");
+                    if ($uploaded_by) {
+                        $where .= " AND ($general_files_table.uploaded_by=$uploaded_by"
+                               . " OR $general_files_table.shared_with LIKE '%:$uploaded_by:%') ";
+                    }
                 }
             }
         } else if ($context_type == "client") { // client details view

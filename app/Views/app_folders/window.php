@@ -91,7 +91,13 @@
                                 ?>
                             </div>
                             <div class="w-100">
-                                <div class="text-break"><?php echo js_anchor($file_name, $preview_link_attr); ?></div>
+                                <div class="text-break"><?php echo js_anchor($file_name, $preview_link_attr); ?>
+                                    <?php if (!empty($folder_item->shared_with)): ?>
+                                        <span title="Shared" style="display:inline-flex;align-items:center;background:#eff6ff;color:#3b82f6;border-radius:4px;padding:1px 5px;font-size:10px;margin-left:4px;vertical-align:middle;">
+                                            <i data-feather="share-2" style="width:10px;height:10px;margin-right:3px;"></i>Shared
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
                                 <small class="text-off file-size"><?php echo $file_size; ?></small>
                             </div>
                         </div>

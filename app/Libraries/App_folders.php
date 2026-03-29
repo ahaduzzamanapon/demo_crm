@@ -305,6 +305,12 @@ trait App_folders {
 
         $permissions = $this->root_folders_default_permissions ? $this->root_folders_default_permissions : "";
 
+        // For non-admin staff creating a new root/child folder in file_manager,
+        // auto-grant full access (rank 9) to the creator so only they can see it.
+        if (!$id && !$this->login_user->is_admin && $this->login_user->user_type === 'staff' && $context === 'file_manager') {
+            $permissions = "9-member:" . $this->login_user->id . ",";
+        }
+
 
         if ($id) {
             $folder_data = array(
@@ -898,8 +904,9 @@ trait App_folders {
                 if ($this->login_user->is_admin) {
                     $options["has_full_access"] = true;
                 } else {
+                    // non-admin staff: only see folders explicitly shared with them
                     $options["member_id"] = $this->login_user->id;
-                    $options["team_ids"] = $this->login_user->team_ids;
+                    $options["team_ids"]  = $this->login_user->team_ids;
                 }
             }
         } else if ($this->login_user->user_type == "client") {

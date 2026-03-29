@@ -14,7 +14,7 @@ class File_manager extends Security_Controller {
 
     //show attendance list view
     function index() {
-        $this->access_only_team_members();
+        $this->access_only_team_members(); // restored: ensures login required
         return $this->explore();
     }
 
@@ -43,6 +43,10 @@ class File_manager extends Security_Controller {
 
     //used by App_folders
     private function _can_manage_folder($folder_id = 0, $context_id = 0) {
+        // All team members can manage folders
+        if ($this->login_user->user_type === 'staff') {
+            return true;
+        }
         if ($this->login_user->is_admin) {
             return true;
         } else if ($folder_id) {
@@ -55,12 +59,14 @@ class File_manager extends Security_Controller {
 
     //used by App_folders
     private function _can_upload_file($folder_id = 0, $context_id = 0) {
+        // All team members can upload files
+        if ($this->login_user->user_type === 'staff') {
+            return true;
+        }
         if ($this->login_user->is_admin) {
             return true;
         } else if ($folder_id) {
-
             $folder_info = $this->get_folder_details($folder_id);
-
             if ($folder_info && ($folder_info->actual_permission_rank >= 3)) {
                 return true;
             }
@@ -68,6 +74,10 @@ class File_manager extends Security_Controller {
     }
 
     private function _can_view_files_in_folder($folder_id = 0) {
+        // All staff members can view files
+        if ($this->login_user->user_type === 'staff') {
+            return true;
+        }
         if ($this->login_user->is_admin) {
             return true;
         } else if ($folder_id) {
@@ -135,6 +145,40 @@ class File_manager extends Security_Controller {
         }
     }
 
+    function share_file_modal_form() {
+        $this->validate_submitted_data(array("id" => "numeric|required"));
+        $id = $this->request->getPost('id');
+        $file_info = $this->General_files_model->get_one($id);
+
+        // Only the uploader or admin can share
+        if (!$file_info || (!$this->login_user->is_admin && $file_info->uploaded_by != $this->login_user->id)) {
+            app_redirect("forbidden");
+        }
+
+        $view_data['file_info'] = $file_info;
+        $view_data['team_members'] = $this->Users_model->get_team_members_id_and_name()->getResult();
+        return $this->template->view('file_manager/share_file_modal_form', $view_data);
+    }
+
+    function save_share_file() {
+        $this->validate_submitted_data(array("id" => "numeric|required"));
+        $id = $this->request->getPost('id');
+        $file_info = $this->General_files_model->get_one($id);
+
+        if (!$file_info || (!$this->login_user->is_admin && $file_info->uploaded_by != $this->login_user->id)) {
+            echo json_encode(array("success" => false, "message" => app_lang('error_occurred')));
+            return;
+        }
+
+        $members = $this->request->getPost('shared_members') ?: [];
+        // Build colon-wrapped format: :3::7: for easy LIKE matching
+        $shared_with = $members ? ':' . implode('::', array_map('intval', $members)) . ':' : null;
+
+        $data = array('shared_with' => $shared_with);
+        $this->General_files_model->ci_save($data, $id);
+        echo json_encode(array("success" => true, "message" => app_lang('record_saved')));
+    }
+
     function view_file($file_id = 0) {
         validate_numeric_value($file_id);
 
@@ -153,10 +197,15 @@ class File_manager extends Security_Controller {
     //used by App_folders
     private function _folder_items($folder_id = "", $context_type = "", $context_id = 0) {
         $options = array(
-            "folder_id" => $folder_id,
+            "folder_id"    => $folder_id,
             "context_type" => $context_type,
-            "is_admin" => $this->login_user->is_admin
+            "is_admin"     => $this->login_user->is_admin
         );
+
+        // Non-admin staff: only show their own root-level files
+        if (!$this->login_user->is_admin && $this->login_user->user_type === 'staff') {
+            $options["uploaded_by"] = $this->login_user->id;
+        }
 
         $options["client_id"] = $context_id;
         return $this->General_files_model->get_details($options)->getResult();
@@ -250,6 +299,10 @@ class File_manager extends Security_Controller {
 
     //used by App_folders
     private function _can_create_folder($parent_folder_id = 0, $context_id = 0) {
+        // All team members can create folders
+        if ($this->login_user->user_type === 'staff') {
+            return true;
+        }
         return $this->_can_manage_folder($parent_folder_id, $context_id);
     }
 }
