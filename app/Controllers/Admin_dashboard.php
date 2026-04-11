@@ -167,7 +167,68 @@ class Admin_dashboard extends Security_Controller
         ]);
     }
 
+    public function get_project_tasks_by_category()
+    {
+        $this->access_only_team_members();
+        $db = \Config\Database::connect();
+        
+        $project_id = (int)$this->request->getPost('project_id');
+        $category   = $this->request->getPost('category'); // done, dev, qa, rem
+        
+        $tasks_table       = $db->prefixTable('tasks');
+        $task_status_table = $db->prefixTable('task_status');
+        
+        // Only load main tasks (parent_task_id=0) matching the progress logic
+        $sql = "SELECT t.id, t.title, ts.key_name, ts.title AS status_title, ts.color 
+                FROM $tasks_table t
+                LEFT JOIN $task_status_table ts ON ts.id = t.status_id
+                WHERE t.project_id = $project_id AND t.deleted = 0 AND t.parent_task_id = 0";
+                
+        $tasks = $db->query($sql)->getResult();
+        
+        $filtered = [];
+        foreach ($tasks as $t) {
+            $key = strtolower(trim($t->key_name));
+            
+            $is_done = in_array($key, ['done', 'completed', 'closed', 'qa_completed']);
+            $is_dev  = in_array($key, ['in_progress', 'development', 'dev_in_progress', 'doing']);
+            $is_qa   = (strpos($key, 'qa') !== false || $key === 'testing' || $key === 'review');
+            
+            if ($is_done) {
+                $task_cat = 'done';
+            } elseif ($is_dev) {
+                $task_cat = 'dev';
+            } elseif ($is_qa) {
+                $task_cat = 'qa';
+            } else {
+                $task_cat = 'rem';
+            }
+            
+            if ($category === $task_cat) {
+                $filtered[] = $t;
+            }
+        }
+        
+        $html = '';
+        if (empty($filtered)) {
+            $html = '<div class="p20 text-center color-secondary">No tasks found for this category.</div>';
+        } else {
+            $html .= '<ul class="list-group">';
+            foreach ($filtered as $t) {
+                $color = $t->color ? $t->color : '#e2e8f0';
+                $html .= '<li class="list-group-item d-flex justify-content-between align-items-center">';
+                $html .= '<a href="#" data-act="ajax-modal" data-action-url="'.get_uri("tasks/view").'" data-post-id="'.$t->id.'" data-modal-lg="1" class="edit">'.esc($t->title).'</a>';
+                $html .= '<span class="badge" style="background-color: '.$color.';">'.esc($t->status_title).'</span>';
+                $html .= '</li>';
+            }
+            $html .= '</ul>';
+        }
+        
+        return $this->response->setJSON(['success' => true, 'html' => $html]);
+    }
+
     // ─── Resource Utilization ──────────────────────────────────────────────────
+
 
     public function get_resource_utilization()
     {

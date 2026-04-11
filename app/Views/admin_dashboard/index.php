@@ -107,7 +107,7 @@
                                 <div class="tab-search-bar">
                                     <div class="tab-search-wrap">
                                         <svg class="tab-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                                        <input type="text" id="ru-search" class="tab-search-input" placeholder="Search projects…" autocomplete="off">
+                                        <input type="text" id="ru-search" class="tab-search-input" placeholder="Search projects or staff…" autocomplete="off">
                                         <button id="ru-search-clear" class="tab-search-clear" style="display:none;" title="Clear">&times;</button>
                                     </div>
                                     <span id="ru-count" class="tab-search-count"></span>
@@ -689,11 +689,14 @@
 .pp-bar-seg-inc   { background:linear-gradient(90deg,#dc2626,#ef4444); animation:pp-pulse 1.4s ease-in-out infinite; }
 
 /* Tooltip on hover */
-.pp-bar-seg[title] { cursor:help; }
+.pp-bar-seg[title] { cursor:pointer; }
+.pp-bar-seg:hover { filter: contrast(1.2); }
 
 /* Task chips row */
 .pp-chips { display:flex; flex-wrap:wrap; gap:6px; padding:0 18px 13px; }
-.pp-chip  { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; }
+.pp-chip  { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; cursor:default; }
+.pp-chip[onclick] { cursor:pointer; transition:opacity 0.2s; }
+.pp-chip[onclick]:hover { opacity:0.8; }
 .pp-chip-total  { background:#f1f5f9; color:#475569; }
 .pp-chip-done   { background:#dcfce7; color:#16a34a; }
 .pp-chip-dev    { background:#dbeafe; color:#2563eb; }
@@ -1087,7 +1090,7 @@ $(document).ready(function () {
 .perf-sl-col { color: #94a3b8; font-size: 11px; width: 32px; }
 .perf-name-col { font-weight: 600; color: #1e293b; min-width: 140px; }
 .perf-missing-row .perf-name-col { color: #cbd5e1; }
-.perf-hours-col { font-weight: 700; color: #4361ee; text-align: right; }
+.perf-hours-col { font-weight: 700; color: #4361ee; text-align: right; white-space: nowrap; }
 .perf-missing-row .perf-hours-col { color: #e2e8f0; }
 .perf-util-col { text-align: right; }
 .perf-util-bar-wrap {
@@ -1167,6 +1170,23 @@ $(document).ready(function () {
 .perf-score-pill.avg   { background: #d97706; }
 .perf-footer-meta { font-size: 11px; color: #64748b; }
 .perf-footer-meta span { font-weight: 700; color: #1e293b; }
+/* ── Toppers ── */
+.perf-top-team {
+    border: 2px solid #f59e0b !important;
+    box-shadow: 0 4px 20px rgba(245,158,11,0.18) !important;
+}
+.perf-top-team-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(255,255,255,0.22); border-radius: 20px;
+    padding: 2px 10px; font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap;
+}
+.perf-crown-cell { font-size: 13px; }
+.perf-topper-row > td:first-child { color: #f59e0b !important; font-size: 15px !important; }
+.perf-topper-row .perf-name-col { font-weight: 800 !important; }
+/* Overall top performer */
+.perf-overall-top-row > td { background: #fef9c3 !important; }
+.perf-overall-top-row > td:first-child { color: #b45309 !important; font-size: 16px !important; }
+.perf-overall-top-row .perf-name-col { font-weight: 800 !important; color: #92400e !important; }
 .perf-miss-chip {
     background: #fee2e2;
     color: #dc2626;
@@ -1276,16 +1296,43 @@ $(document).ready(function () {
 
         out += '<div class="perf-teams-grid">';
 
-        teams.forEach(function(team) {
-            var members = team.members;
-            var perfClass = team.team_perf >= 70 ? 'good' : (team.team_perf >= 40 ? 'avg' : '');
+        // Determine top team for the day
+        var bestTeamIdx = 0, bestTeamPerf = -1;
+        teams.forEach(function(t, ti) {
+            if (t.team_perf > bestTeamPerf) { bestTeamPerf = t.team_perf; bestTeamIdx = ti; }
+        });
 
-            out += '<div class="perf-team-card">';
+        // Find overall top performer across ALL teams
+        var overallTopUserId = -1, overallTopUtil = -1;
+        teams.forEach(function(t) {
+            t.members.forEach(function(m) {
+                if (m.has_log && m.util_pct > overallTopUtil) {
+                    overallTopUtil = m.util_pct;
+                    overallTopUserId = m.user_id;
+                }
+            });
+        });
+
+        teams.forEach(function(team, teamIdx) {
+            var members   = team.members;
+            var perfClass = team.team_perf >= 70 ? 'good' : (team.team_perf >= 40 ? 'avg' : '');
+            var isTopTeam = (bestTeamPerf > 0 && teamIdx === bestTeamIdx);
+
+            // Find individual topper in this team (highest util_pct among logged members)
+            var topMemberIdx = -1, topUtil = -1;
+            members.forEach(function(m, mi) {
+                if (m.has_log && m.util_pct > topUtil) { topUtil = m.util_pct; topMemberIdx = mi; }
+            });
+
+            out += '<div class="perf-team-card' + (isTopTeam ? ' perf-top-team' : '') + '">';
 
             // Header
             out += '<div class="perf-team-header">';
             out +=   '<span class="perf-team-name">' + escHtml(team.team_name) + '</span>';
-            out +=   '<span class="perf-team-count">' + members.length + ' member' + (members.length !== 1 ? 's' : '') + '</span>';
+            out +=   '<div style="display:flex;align-items:center;gap:8px;">';
+            if (isTopTeam) out += '<span class="perf-top-team-badge">🏆 Top Team</span>';
+            out +=     '<span class="perf-team-count">' + members.length + ' member' + (members.length !== 1 ? 's' : '') + '</span>';
+            out +=   '</div>';
             out += '</div>';
 
             // Table
@@ -1299,7 +1346,11 @@ $(document).ready(function () {
             out += '</tr></thead><tbody>';
 
             members.forEach(function(m, idx) {
+                var isOverallTop = (m.user_id === overallTopUserId && overallTopUserId >= 0);
+                var isTeamTopper = (idx === topMemberIdx && topMemberIdx >= 0 && !isOverallTop);
                 var rowClass = m.has_log ? '' : 'perf-missing-row';
+                if (isOverallTop) rowClass += ' perf-overall-top-row';
+                else if (isTeamTopper) rowClass += ' perf-topper-row';
                 var commentHtml = '';
 
                 if (m.comment === 'on leave (admin)') {
@@ -1337,7 +1388,9 @@ $(document).ready(function () {
                 var hoursStr    = m.hours > 0 ? (hInt + 'h ' + hMin + 'm') : '0h 0m';
 
                 out += '<tr class="' + rowClass + '">';
-                out += '<td class="perf-sl-col">' + (idx + 1) + '</td>';
+                // # col: 🥇 overall top, 👑 team topper, else row number
+                var slContent = isOverallTop ? '🥇' : (isTeamTopper ? '👑' : (idx + 1));
+                out += '<td class="perf-sl-col">' + slContent + '</td>';
                 out += '<td class="perf-name-col">' + escHtml(m.name) + '</td>';
                 out += '<td class="perf-hours-col">' + hoursStr + '</td>';
                 out += '<td class="perf-util-col"><div class="perf-util-bar-wrap"><div class="perf-util-bar"><div class="perf-util-fill' + fillClass + '" style="width:' + utilBarW + '%"></div></div><span class="perf-util-pct' + pctClass + '">' + pctLabel + '</span></div></td>';
@@ -1533,12 +1586,13 @@ function markPerfOverride(userId, reportDate, overrideType) {
             // Stacked bar — overdue: remaining turns red; inconsistent: remaining pulses red
             var barBg = p.is_overdue ? 'background:#fee2e2;' : '';
             var bar = '<div class="pp-bar" style="' + barBg + '">';
-            if (p.done_pct > 0) bar += '<div class="pp-bar-seg pp-bar-seg-done" style="width:' + p.done_pct + '%;" title="Done: ' + p.done_pct + '%"></div>';
-            if (p.dev_pct  > 0) bar += '<div class="pp-bar-seg pp-bar-seg-dev"  style="width:' + p.dev_pct  + '%;" title="Dev: '  + p.dev_pct  + '%"></div>';
-            if (p.qa_pct   > 0) bar += '<div class="pp-bar-seg pp-bar-seg-qa"   style="width:' + p.qa_pct   + '%;" title="QA: '   + p.qa_pct   + '%"></div>';
+            var eTitle = esc(p.project_title).replace(/'/g, "\\'");
+            if (p.done_pct > 0) bar += '<div class="pp-bar-seg pp-bar-seg-done" onclick="openPPTasksModal(' + p.project_id + ', \'done\', \'' + eTitle + '\')" style="width:' + p.done_pct + '%;" title="Done: ' + p.done_pct + '%"></div>';
+            if (p.dev_pct  > 0) bar += '<div class="pp-bar-seg pp-bar-seg-dev"  onclick="openPPTasksModal(' + p.project_id + ', \'dev\', \'' + eTitle + '\')" style="width:' + p.dev_pct  + '%;" title="Dev: '  + p.dev_pct  + '%"></div>';
+            if (p.qa_pct   > 0) bar += '<div class="pp-bar-seg pp-bar-seg-qa"   onclick="openPPTasksModal(' + p.project_id + ', \'qa\', \'' + eTitle + '\')" style="width:' + p.qa_pct   + '%;" title="QA: '   + p.qa_pct   + '%"></div>';
             if (p.remaining_pct > 0) {
                 var remSeg = p.is_inconsistent ? 'pp-bar-seg-inc' : (p.is_overdue ? 'pp-bar-seg-inc' : 'pp-bar-seg-rem');
-                bar += '<div class="pp-bar-seg ' + remSeg + '" style="width:' + p.remaining_pct + '%;" title="Remaining: ' + p.remaining_pct + '%"></div>';
+                bar += '<div class="pp-bar-seg ' + remSeg + '" onclick="openPPTasksModal(' + p.project_id + ', \'rem\', \'' + eTitle + '\')" style="width:' + p.remaining_pct + '%;" title="Remaining: ' + p.remaining_pct + '%"></div>';
             }
             bar += '</div>';
 
@@ -1551,10 +1605,10 @@ function markPerfOverride(userId, reportDate, overrideType) {
 
             var chips = '<div class="pp-chips">'
                 + '<span class="pp-chip pp-chip-total">T: ' + p.T + '</span>'
-                + '<span class="pp-chip pp-chip-done">Done: ' + p.Dq + '</span>'
-                + '<span class="pp-chip pp-chip-dev">Dev: ' + p.Dp + '</span>'
-                + '<span class="pp-chip pp-chip-qa">QA: ' + p.Qp + '</span>'
-                + '<span class="pp-chip pp-chip-rem">Left: ' + p.RT + '</span>'
+                + '<span class="pp-chip pp-chip-done" onclick="openPPTasksModal(' + p.project_id + ', \'done\', \'' + eTitle + '\')">Done: ' + p.Dq + '</span>'
+                + '<span class="pp-chip pp-chip-dev" onclick="openPPTasksModal(' + p.project_id + ', \'dev\', \'' + eTitle + '\')">Dev: ' + p.Dp + '</span>'
+                + '<span class="pp-chip pp-chip-qa" onclick="openPPTasksModal(' + p.project_id + ', \'qa\', \'' + eTitle + '\')">QA: ' + p.Qp + '</span>'
+                + '<span class="pp-chip pp-chip-rem" onclick="openPPTasksModal(' + p.project_id + ', \'rem\', \'' + eTitle + '\')">Left: ' + p.RT + '</span>'
                 + (p.avg_est_h > 0 ? '<span class="pp-chip pp-chip-rh">RH ' + p.RH + 'h / AH ' + p.AH + 'h</span>' : '')
                 + '</div>';
 
@@ -1633,7 +1687,9 @@ function markPerfOverride(userId, reportDate, overrideType) {
         var html = '';
         projects.forEach(function(proj) {
             var rows = '';
+            var searchData = proj.project_title;
             proj.members.forEach(function(m) {
+                searchData += ' ' + m.name;
                 var remCls = 'ru-rem-ok';
                 if (m.remaining < 0) remCls = 'ru-rem-over';
                 else if (m.est > 0 && (m.spent / m.est) >= 0.8) remCls = 'ru-rem-warn';
@@ -1657,7 +1713,7 @@ function markPerfOverride(userId, reportDate, overrideType) {
                     + '</tr>';
             });
 
-            html += '<div class="ru-card" data-title="' + esc(proj.project_title) + '">'
+            html += '<div class="ru-card" data-title="' + esc(proj.project_title) + '" data-search="' + esc(searchData) + '">'
                 + '<div class="ru-card-head">'
                 +   '<div class="ru-card-title" title="' + esc(proj.project_title) + '"><a href="<?php echo get_uri("projects/view/"); ?>' + proj.project_id + '" target="_blank">' + esc(proj.project_title) + '</a></div>'
                 +   (proj.status_label ? '<span class="ru-card-status">' + esc(proj.status_label) + '</span>' : '')
@@ -1711,8 +1767,8 @@ function markPerfOverride(userId, reportDate, overrideType) {
             var cards = list.querySelectorAll('.' + cardClass);
             var visible = 0;
             cards.forEach(function(card) {
-                var title = (card.getAttribute('data-title') || '').toLowerCase();
-                var show = !q || title.indexOf(q) !== -1;
+                var searchText = (card.getAttribute('data-search') || card.getAttribute('data-title') || '').toLowerCase();
+                var show = !q || searchText.indexOf(q) !== -1;
                 card.classList.toggle('pp-hidden', !show);
                 if (show) visible++;
             });
@@ -1743,4 +1799,53 @@ function markPerfOverride(userId, reportDate, overrideType) {
         initTabSearch('ru-search', 'ru-search-clear', 'ru-list', 'ru-count', 'ru-card');
     });
 })();
+
+// Task List Modal Logic
+window.openPPTasksModal = function(projectId, category, projectTitle) {
+    var catName = category === 'done' ? 'Done' : (category === 'dev' ? 'In Dev' : (category === 'qa' ? 'QA' : 'Remaining'));
+    document.getElementById('pp-modal-title').textContent = projectTitle + ' - ' + catName + ' Tasks';
+    var content = document.getElementById('pp-modal-content');
+    content.innerHTML = '<div class="p20 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+    
+    // Use the native bootstrap 5 modal instance
+    var modalEl = document.getElementById('pp-tasks-modal');
+    if (typeof bootstrap !== 'undefined') {
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    } else {
+        $(modalEl).modal('show');
+    }
+
+    $.ajax({
+        url: '<?php echo get_uri("admin_dashboard/get_project_tasks_by_category"); ?>',
+        type: 'POST',
+        data: { project_id: projectId, category: category },
+        dataType: 'json',
+        success: function(res) {
+            if (res.success) {
+                content.innerHTML = res.html;
+            } else {
+                content.innerHTML = '<div class="p20 text-danger text-center">Failed to load tasks.</div>';
+            }
+        },
+        error: function() {
+            content.innerHTML = '<div class="p20 text-danger text-center">Failed to connect to server.</div>';
+        }
+    });
+};
 </script>
+
+<!-- Project Progress Tasks Modal -->
+<div class="modal fade" id="pp-tasks-modal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pp-modal-title">Project Tasks</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="pp-modal-content" style="max-height: 60vh; overflow-y: auto;">
+                <!-- content -->
+            </div>
+        </div>
+    </div>
+</div>
