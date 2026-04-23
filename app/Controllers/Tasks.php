@@ -12,6 +12,7 @@ class Tasks extends Security_Controller {
     protected $Checklist_items_model;
     protected $Pin_comments_model;
     protected $Project_settings_model;
+    protected $Task_dod_model;
     private $project_member_memory = array(); //array([project_id]=>true/false)
     private $project_client_memory = array(); //array([project_id]=>true/false)
     private $can_edit_client_memory = array(); //array([client_id]=>true/false, [any_clients]=>true/false)
@@ -32,6 +33,7 @@ class Tasks extends Security_Controller {
         $this->Checklist_items_model = model('App\Models\Checklist_items_model');
         $this->Pin_comments_model = model('App\Models\Pin_comments_model');
         $this->Project_settings_model = model('App\Models\Project_settings_model');
+        $this->Task_dod_model = model('App\Models\Task_dod_model');
     }
 
     private function get_context_id_pairs() {
@@ -2853,7 +2855,7 @@ class Tasks extends Security_Controller {
         }
     }
 
-    /* upadate a task status */
+    /* update a task status */
 
     function save_task_status($id = 0) {
         validate_numeric_value($id);
@@ -2870,6 +2872,19 @@ class Tasks extends Security_Controller {
             app_redirect("forbidden");
         }
 
+        // --- DoD enforcement: require checklist before moving to QA (status_id = 4) ---
+        if ((string)$status_id === "4" && (string)$task_info->status_id !== "4") {
+            $existing_dod = $this->Task_dod_model->get_by_task_id($id);
+            if (!$existing_dod) {
+                echo json_encode(array(
+                    "success"     => true,  // must be true so onSuccess callback fires
+                    "require_dod" => true,
+                    "task_id"     => $id,
+                ));
+                return false;
+            }
+        }
+
         if ($task_info->status_id !== $status_id) {
             $data["status_changed_at"] = get_current_utc_time();
         }
@@ -2881,10 +2896,102 @@ class Tasks extends Security_Controller {
             $task_info = $this->Tasks_model->get_details(array("id" => $id))->getRow();
             echo json_encode(array("success" => true, "data" => (($this->request->getPost("type") == "sub_task") ? $this->_make_sub_task_row($task_info, "data") : $this->_row_data($save_id)), 'id' => $save_id, "message" => app_lang('record_saved')));
 
-            $this->_send_task_updated_notification($task_info,  get_array_value($data, "activity_log_id"));
+            $this->_send_task_updated_notification($task_info, get_array_value($data, "activity_log_id"));
         } else {
             echo json_encode(array("success" => false, app_lang('error_occurred')));
         }
+    }
+
+    /* Show DoD modal form */
+    function dod_modal() {
+        $task_id = $this->request->getPost('task_id');
+        validate_numeric_value($task_id);
+
+        $task_info = $this->Tasks_model->get_details(array("id" => $task_id))->getRow();
+        if (!$task_info || !$this->can_view_tasks("", 0, $task_info)) {
+            app_redirect("forbidden");
+        }
+
+        $existing_dod = $this->Task_dod_model->get_by_task_id($task_id);
+
+        $view_data = array(
+            "task_info"    => $task_info,
+            "task_id"      => $task_id,
+            "existing_dod" => $existing_dod,
+        );
+
+        return $this->template->view('tasks/dod_modal_form', $view_data);
+    }
+
+    /* Save DoD and move task to QA */
+    function save_dod() {
+        $task_id = $this->request->getPost('task_id');
+        validate_numeric_value($task_id);
+
+        $task_info = $this->Tasks_model->get_one($task_id);
+
+        $data = array(
+            "task_id"               => $task_id,
+            "project_id"            => $task_info->project_id ? $task_info->project_id : 0,
+            "unit_tests_passed"     => $this->request->getPost('unit_tests_passed'),
+            "unit_tests_note"       => $this->request->getPost('unit_tests_note'),
+            "func_req_met"          => $this->request->getPost('func_req_met'),
+            "func_req_note"         => $this->request->getPost('func_req_note'),
+            "design_followed"       => $this->request->getPost('design_followed'),
+            "design_note"           => $this->request->getPost('design_note'),
+            "code_review_completed" => $this->request->getPost('code_review_completed'),
+            "code_review_note"      => $this->request->getPost('code_review_note'),
+            "docs_updated"          => $this->request->getPost('docs_updated'),
+            "docs_note"             => $this->request->getPost('docs_note'),
+            "developer_note"        => $this->request->getPost('developer_note'),
+            "lead_note"             => $this->request->getPost('lead_note'),
+            "created_by"            => $this->login_user->id,
+            "created_at"            => get_current_utc_time(),
+        );
+
+        $data = clean_data($data);
+
+        // Delete any old DoD for this task before saving new one
+        $db = \Config\Database::connect();
+        $db->table($db->prefixTable('task_dod'))->where('task_id', $task_id)->delete();
+
+        $save_id = $this->Task_dod_model->ci_save($data);
+
+        if (!$save_id) {
+            log_message('error', 'Dod save failed. Data: ' . json_encode($data) . ' DB Error: ' . json_encode($this->Task_dod_model->db->error()));
+            echo json_encode(array("success" => false, "message" => 'Failed to save DoD record. Please try again.'));
+            return false;
+        }
+
+        // Now move task to QA (status_id = 4)
+        $status_data = array(
+            "status_id"        => 4,
+            "status_changed_at" => get_current_utc_time(),
+        );
+        $status_save = $this->Tasks_model->ci_save($status_data, $task_id);
+
+        if (!$status_save) {
+            log_message('error', 'Task status update failed to QA. Task ID: ' . $task_id);
+            echo json_encode(array("success" => false, "message" => 'Failed to update task status to QA.'));
+            return false;
+        }
+
+        $updated_task = $this->Tasks_model->get_details(array("id" => $task_id))->getRow();
+        
+        try {
+            $this->_send_task_updated_notification($updated_task, null);
+        } catch (\Throwable $th) {
+            // Ignore notification errors (e.g. Call to undefined function curl_init) to prevent breaking the JSON response
+        }
+
+        $json_response = json_encode(array(
+            "success" => true,
+            "message" => "DoD submitted. Task moved to QA.",
+            "data"    => $this->_row_data($task_id),
+            "id"      => $task_id,
+        ));
+        
+        echo $json_response;
     }
 
     function update_task_info($id = 0, $data_field = "") {
@@ -3067,6 +3174,19 @@ class Tasks extends Security_Controller {
         );
 
         if ($status_id) {
+            // --- DoD enforcement: require checklist before moving to QA (status_id = 4) ---
+            if ((string)$status_id === "4" && (string)$task_info->status_id !== "4") {
+                $existing_dod = $this->Task_dod_model->get_by_task_id($id);
+                if (!$existing_dod) {
+                    echo json_encode(array(
+                        "success"     => true,  // must be true so onSuccess callback fires
+                        "require_dod" => true,
+                        "task_id"     => $id,
+                    ));
+                    return false;
+                }
+            }
+
             $data["status_id"] = $status_id;
 
             if ($task_info->status_id !== $status_id) {
@@ -3082,10 +3202,12 @@ class Tasks extends Security_Controller {
             if ($status_id) {
                 $this->_send_task_updated_notification($task_info, get_array_value($data, "activity_log_id"));
             }
+            echo json_encode(array("success" => true));
         } else {
             echo json_encode(array("success" => false, app_lang('error_occurred')));
         }
     }
+
 
     /* list of tasks, prepared for datatable  */
 

@@ -138,16 +138,44 @@
 
         $item.attr("data-sort", newSort);
 
+        // Store original status so we can revert if DoD is required
+        var originalStatusId = $item.attr("data-status_id");
 
         appAjaxRequest({
             url: '<?php echo_uri("tasks/save_task_sort_and_status") ?>',
             type: "POST",
+            dataType: "json",
             data: {id: id, sort: newSort, status_id: status, project_id: project_id},
-            success: function () {
+            success: function (response) {
                 appLoader.hide();
 
-                if (isMobile()) {
-                    adjustViewHeightWidth();
+                if (response && response.require_dod) {
+                    // Move card back to its original column visually
+                    var $originalList = $("#kanban-item-list-" + originalStatusId);
+                    if ($originalList.length) {
+                        $originalList.prepend($item);
+                        $item.attr("data-status_id", originalStatusId);
+                        adjustViewHeightWidth();
+                    }
+
+                    // Open the DoD modal
+                    if (typeof openDodModal === 'function') {
+                        openDodModal(response.task_id, function(dodResponse) {
+                            if (dodResponse && dodResponse.success) {
+                                // Reload kanban after successful DoD submission
+                                window.reloadKanban = true;
+                                if ($("#reload-kanban-button:visible").length) {
+                                    setTimeout(function() {
+                                        $("#reload-kanban-button").trigger("click");
+                                    }, 300);
+                                }
+                            }
+                        });
+                    }
+                } else {
+                    if (isMobile()) {
+                        adjustViewHeightWidth();
+                    }
                 }
             },
             error: function () {
@@ -156,6 +184,7 @@
         });
 
     };
+
 
 
     setLoadmoreButton = function () {
@@ -296,4 +325,5 @@
 
 </script>
 
+<?php echo view("tasks/dod_modal_helper_js"); ?>
 <?php echo view("tasks/update_task_read_comments_status_script"); ?>

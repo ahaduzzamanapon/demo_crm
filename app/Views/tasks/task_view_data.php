@@ -31,6 +31,42 @@ if ($total_sub_tasks) {
                                 echo "<span class='badge' style='background:$model_info->status_color; '>" . get_update_task_info_anchor_data($model_info, "status", $can_edit_task_status) . "</span>";
                                 ?>
                             </p>
+
+                            <?php
+                            // Show "Submit to QA" DoD button only for staff who can edit, and task is not already QA/Done
+                            if ($login_user->user_type === 'staff' && $can_edit_tasks && !in_array((string)$model_info->status_id, ['3', '4'])):
+                            ?>
+                            <p class="mt5">
+                                <?php echo modal_anchor(
+                                    get_uri("tasks/dod_modal"),
+                                    "<i data-feather='send' class='icon-14'></i> Submit to QA",
+                                    array(
+                                        "class"         => "btn btn-sm btn-warning dod-trigger-btn",
+                                        "title"         => "Definition of Done — Submit to QA",
+                                        "data-post-task_id" => $model_info->id,
+                                        "data-modal-lg" => "1",
+                                    )
+                                ); ?>
+                            </p>
+                            <?php endif; ?>
+
+                            <?php
+                            // If DoD already submitted, show a small "View DoD" link
+                            if ($login_user->user_type === 'staff' && in_array((string)$model_info->status_id, ['3', '4'])):
+                            ?>
+                            <p class="mt5">
+                                <?php echo modal_anchor(
+                                    get_uri("tasks/dod_modal"),
+                                    "<i data-feather='file-text' class='icon-14'></i> View / Update DoD",
+                                    array(
+                                        "class"         => "btn btn-sm btn-default dod-trigger-btn",
+                                        "title"         => "Definition of Done Checklist",
+                                        "data-post-task_id" => $model_info->id,
+                                        "data-modal-lg" => "1",
+                                    )
+                                ); ?>
+                            </p>
+                            <?php endif; ?>
                         </div>
                     </div>
 

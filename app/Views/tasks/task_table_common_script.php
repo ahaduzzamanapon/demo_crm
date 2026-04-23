@@ -22,6 +22,11 @@ if (!isset($project_id)) {
         }, 50);
     };
 
+</script>
+
+<?php echo view("tasks/dod_modal_helper_js"); ?>
+
+<script type="text/javascript">
     $(document).ready(function() {
         setTimeout(function() {
             appAjaxRequest({
@@ -31,14 +36,25 @@ if (!isset($project_id)) {
                 success: function(result) {
                     if (result) {
                         $('body').on('click', '[data-act=update-task-status]', function() {
-                            $(this).appModifier({
-                                value: $(this).attr('data-value'),
-                                actionUrl: '<?php echo_uri("tasks/save_task_status") ?>/' + $(this).attr('data-id'),
+                            var $el = $(this);
+                            $el.appModifier({
+                                value: $el.attr('data-value'),
+                                actionUrl: '<?php echo_uri("tasks/save_task_status") ?>/' + $el.attr('data-id'),
                                 select2Option: {
                                     data: result
                                 },
                                 onSuccess: function(response, newValue) {
-                                    if (response.success) {
+                                    // IMPORTANT: check require_dod BEFORE success
+                                    if (response.require_dod) {
+                                        openDodModal(response.task_id, function(dodResponse) {
+                                            if (dodResponse && dodResponse.success) {
+                                                $("#task-table").appTable({
+                                                    newData: dodResponse.data,
+                                                    dataId: dodResponse.id
+                                                });
+                                            }
+                                        });
+                                    } else if (response.success) {
                                         $("#task-table").appTable({
                                             newData: response.data,
                                             dataId: response.id
@@ -55,21 +71,35 @@ if (!isset($project_id)) {
         }, 3000);
 
         $('body').on('click', '[data-act=update-task-status-checkbox]', function() {
-            $(this).find("span").removeClass("checkbox-checked");
-            $(this).find("span").addClass("inline-loader");
+            var $btn = $(this);
+            $btn.find("span").removeClass("checkbox-checked");
+            $btn.find("span").addClass("inline-loader");
             appAjaxRequest({
-                url: '<?php echo_uri("tasks/save_task_status") ?>/' + $(this).attr('data-id'),
+                url: '<?php echo_uri("tasks/save_task_status") ?>/' + $btn.attr('data-id'),
                 type: 'POST',
                 dataType: 'json',
                 data: {
-                    value: $(this).attr('data-value')
+                    value: $btn.attr('data-value')
                 },
                 success: function(response) {
-                    if (response.success) {
+                    // IMPORTANT: check require_dod BEFORE success
+                    if (response.require_dod) {
+                        $btn.find("span").removeClass("inline-loader").addClass("checkbox-blank");
+                        openDodModal(response.task_id, function(dodResponse) {
+                            if (dodResponse && dodResponse.success) {
+                                $("#task-table").appTable({
+                                    newData: dodResponse.data,
+                                    dataId: dodResponse.id
+                                });
+                            }
+                        });
+                    } else if (response.success) {
                         $("#task-table").appTable({
                             newData: response.data,
                             dataId: response.id
                         });
+                    } else {
+                        $btn.find("span").removeClass("inline-loader").addClass("checkbox-blank");
                     }
                 }
             });
