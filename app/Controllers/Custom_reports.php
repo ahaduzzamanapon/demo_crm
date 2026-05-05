@@ -17,6 +17,7 @@ class Custom_reports extends Security_Controller
         $this->Users_model = model('App\Models\Users_model');
         $this->Tasks_model = model('App\Models\Tasks_model');
         $this->db = \Config\Database::connect();
+        $this->Team_model = model('App\Models\Team_model');
     }
 
     public function index()
@@ -325,6 +326,125 @@ class Custom_reports extends Security_Controller
         $view_data['resource_utilization_data'] = $resource_utilization_data;
         $view_data['date_range'] = $date_range;
 
+
+        // =====================================================
+        // Team-wise Project Report  (Project × Task-Status columns)
+        // =====================================================
+        $tasks_table_tw      = $this->db->prefixTable('tasks');
+        $activity_logs_table = $this->db->prefixTable('activity_logs');
+        $projects_table_tw   = $this->db->prefixTable('projects');
+
+        // Re-use $task_statuses already fetched above for the project-report section
+        // Build dynamic per-status SUM columns
+        $tw_status_columns = "";
+        foreach ($task_statuses as $ts) {
+            $tw_status_columns .= ", SUM(CASE WHEN t.status_id = {$ts->id} THEN 1 ELSE 0 END) AS status_{$ts->id}_count";
+        }
+
+        // Get all active teams
+        $all_teams = $this->Team_model->get_details()->getResult();
+
+        $team_wise_report = [];
+
+        foreach ($all_teams as $team) {
+            // Parse & sanitize comma-separated member IDs
+            $member_ids_raw = array_filter(array_map('trim', explode(',', $team->members)));
+            $member_ids     = array_filter($member_ids_raw, 'is_numeric');
+            if (empty($member_ids)) {
+                continue;
+            }
+            $member_ids_str = implode(',', $member_ids);
+
+            // Date condition: task created OR status-changed OR has activity log in range
+            $date_cond = "";
+            if ($start_date && $end_date) {
+                $date_cond = "AND (
+                    (t.created_date BETWEEN '$start_date' AND '$end_date')
+                    OR (t.status_changed_at IS NOT NULL AND DATE(t.status_changed_at) BETWEEN '$start_date' AND '$end_date')
+                    OR EXISTS (
+                        SELECT 1 FROM $activity_logs_table al
+                        WHERE al.log_type = 'task'
+                          AND al.log_type_id = t.id
+                          AND al.deleted = 0
+                          AND DATE(al.created_at) BETWEEN '$start_date' AND '$end_date'
+                    )
+                )";
+            }
+
+            $proj_filter_where = "";
+            if ($project_id) {
+                $proj_filter_where = "AND p.id = " . (int)$project_id;
+            }
+
+            $project_members_tw = $this->db->prefixTable('project_members');
+
+            // Build date condition for LEFT JOIN ON clause (tasks within date range for team members)
+            $task_date_join = "t.deleted = 0 AND t.assigned_to IN ($member_ids_str)";
+            if ($start_date && $end_date) {
+                $task_date_join .= " AND (
+                    (t.created_date BETWEEN '$start_date' AND '$end_date')
+                    OR (t.status_changed_at IS NOT NULL AND DATE(t.status_changed_at) BETWEEN '$start_date' AND '$end_date')
+                    OR EXISTS (
+                        SELECT 1 FROM $activity_logs_table al
+                        WHERE al.log_type = 'task'
+                          AND al.log_type_id = t.id
+                          AND al.deleted = 0
+                          AND DATE(al.created_at) BETWEEN '$start_date' AND '$end_date'
+                    )
+                )";
+            }
+
+            // Get ALL projects where ANY team member is a project_member
+            // Then LEFT JOIN tasks (with date+member filter) — project shows even if tasks=0
+            $sql_proj = "
+                SELECT
+                    p.id        AS project_id,
+                    p.title     AS project_name,
+                    COUNT(DISTINCT t.id) AS total_tasks
+                    $tw_status_columns
+                FROM $projects_table_tw p
+                INNER JOIN $project_members_tw pm
+                    ON pm.project_id = p.id
+                    AND pm.deleted = 0
+                    AND pm.user_id IN ($member_ids_str)
+                LEFT JOIN $tasks_table_tw t
+                    ON $task_date_join
+                    AND t.project_id = p.id
+                WHERE
+                    p.deleted = 0
+                    $proj_filter_where
+                GROUP BY p.id, p.title
+                ORDER BY p.title
+            ";
+
+            $projects_data = $this->db->query($sql_proj)->getResult();
+
+            // Compute team-level totals (total + per-status)
+            $team_total_tasks   = 0;
+            $team_status_totals = [];
+            foreach ($task_statuses as $ts) {
+                $team_status_totals[$ts->id] = 0;
+            }
+            foreach ($projects_data as $proj) {
+                $team_total_tasks += $proj->total_tasks;
+                foreach ($task_statuses as $ts) {
+                    $col = "status_{$ts->id}_count";
+                    $team_status_totals[$ts->id] += ($proj->$col ?? 0);
+                }
+            }
+
+            $team_wise_report[] = [
+                'team_id'           => $team->id,
+                'team_name'         => $team->title,
+                'projects'          => $projects_data,
+                'total_tasks'       => $team_total_tasks,
+                'status_totals'     => $team_status_totals,
+            ];
+        }
+
+        $view_data['team_wise_report']      = $team_wise_report;
+        $view_data['team_task_statuses']    = $task_statuses;   // reuse for column headers
+        $view_data['team_report_date_label'] = $start_date . ' to ' . $end_date;
 
         return $this->template->rander("custom_reports/index", $view_data);
     }

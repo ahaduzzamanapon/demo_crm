@@ -113,6 +113,8 @@
                 <li class="nav-item"><a class="nav-link" href="#resource-utilization-report" data-bs-toggle="tab"><i
                             data-feather="pie-chart" class="icon-16"></i>
                         <?php echo app_lang('resource_utilization_report'); ?></a></li>
+                <li class="nav-item"><a class="nav-link" href="#team-wise-report" data-bs-toggle="tab"><i
+                            data-feather="users" class="icon-16"></i> Team Wise Report</a></li>
             </ul>
             <div class="tab-content">
                 <div role="tabpanel" class="tab-pane fade show active" id="project-report">
@@ -201,182 +203,237 @@
                     </div>
                 </div>
                 <div role="tabpanel" class="tab-pane fade" id="user-time-log-report">
-                    <div class="table-responsive">
-                        <style>
-                            #user-time-log-report-table,
-                            #user-time-log-report-table th,
-                            #user-time-log-report-table td {
-                                border: 1px solid #000 !important;
-                                /* black border */
-                            }
+                    <?php
+                    // ========== Group data: Member -> Project -> Tasks ==========
+                    $employeeData = [];
+                    foreach ($user_time_log_report_data as $item) {
+                        $member = $item->member_name;
+                        $project = $item->project_name;
+                        $task_name = $item->task_name ?: '-';
+                        $estimated_hr = $item->task_estimated_time ? $item->task_estimated_time : 0;
+                        $spent_seconds = $item->spent_seconds ? $item->spent_seconds : 0;
 
-                            #user-time-log-report-table {
-                                border-collapse: collapse !important;
-                                /* ensures borders join cleanly */
-                                text-align: center;
-                            }
-
-                            #user-time-log-report-table th,
-                            #user-time-log-report-table td {
-                                vertical-align: middle;
-                                padding: 6px 10px;
-                            }
-                        </style>
-
-                        <style>
-                            #user-time-log-report-table {
-                                width: 100%;
-                                text-align: center;
-                            }
-
-                            #user-time-log-report-table th,
-                            #user-time-log-report-table td {
-                                text-align: center;
-                                vertical-align: middle;
-                            }
-                        </style>
-
-                        <?php
-                        $groupedData = [];
-
-                        // Group data by Member + Project
-                        foreach ($user_time_log_report_data as $item) {
-                            $key = $item->member_name . '_' . $item->project_name;
-                            $groupedData[$key][] = $item;
+                        if (!isset($employeeData[$member])) {
+                            $employeeData[$member] = [];
                         }
-                        ?>
+                        if (!isset($employeeData[$member][$project])) {
+                            $employeeData[$member][$project] = [];
+                        }
+                        if (!isset($employeeData[$member][$project][$task_name])) {
+                            $employeeData[$member][$project][$task_name] = [
+                                'estimated_hr' => $estimated_hr,
+                                'total_spent_seconds' => 0,
+                                'logs' => []
+                            ];
+                        }
+                        $employeeData[$member][$project][$task_name]['total_spent_seconds'] += $spent_seconds;
+                        $employeeData[$member][$project][$task_name]['logs'][] = [
+                            'datetime' => format_to_datetime($item->work_start_time) . " to " . format_to_datetime($item->work_end_time),
+                            'spent_seconds' => $spent_seconds
+                        ];
+                    }
+                    ?>
 
-                        <table id="user-time-log-report-table" class="table table-striped table-hover" cellspacing="0"
-                            width="100%">
-                            <thead>
-                                <tr>
-                                    <th><?php echo app_lang('sl'); ?></th>
-                                    <th><?php echo app_lang('member'); ?></th>
-                                    <th><?php echo app_lang('project'); ?></th>
-                                    <th><?php echo app_lang('datetime'); ?></th>
-                                    <th><?php echo app_lang('task_name'); ?></th>
-                                    <th><?php echo app_lang('estimated_hr'); ?></th>
-                                    <th><?php echo app_lang('time_spent_hr'); ?></th>
-                                    <th><?php echo app_lang('remaining_hr'); ?></th>
-                                </tr>
-                            </thead>
+                    <style>
+                        .per-user-card {
+                            margin-bottom: 24px;
+                            border: 1px solid #dee2e6;
+                            border-radius: 8px;
+                            overflow: hidden;
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+                        }
+                        .per-user-card-header {
+                            background: linear-gradient(135deg, #3c78d8 0%, #1a4fa0 100%);
+                            color: #fff;
+                            padding: 12px 18px;
+                            display: flex;
+                            align-items: center;
+                            gap: 10px;
+                        }
+                        .per-user-card-header .employee-avatar {
+                            width: 38px;
+                            height: 38px;
+                            border-radius: 50%;
+                            background: rgba(255,255,255,0.25);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 16px;
+                            font-weight: 700;
+                            flex-shrink: 0;
+                        }
+                        .per-user-card-header .employee-name {
+                            font-size: 16px;
+                            font-weight: 600;
+                            margin: 0;
+                        }
+                        .per-user-card-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                        }
+                        .per-user-card-table th,
+                        .per-user-card-table td {
+                            border: 1px solid #dee2e6;
+                            padding: 7px 10px;
+                            text-align: center;
+                            vertical-align: middle;
+                            font-size: 13px;
+                        }
+                        .per-user-card-table thead tr {
+                            background: #f0f4ff;
+                            font-weight: 600;
+                        }
+                        .per-user-card-table .project-subtotal td {
+                            background: #f8f9fa;
+                            font-weight: 600;
+                            font-style: italic;
+                            color: #495057;
+                        }
+                        .per-user-card-table .grand-total td {
+                            background: #e8f0fe;
+                            font-weight: 700;
+                            color: #1a4fa0;
+                            border-top: 2px solid #3c78d8 !important;
+                        }
+                        .per-user-card-table .project-name-cell {
+                            background: #f8f9fa;
+                            font-weight: 600;
+                            color: #333;
+                        }
+                        @media print {
+                            .per-user-card { page-break-inside: avoid; }
+                        }
+                    </style>
 
-                            <tbody>
+                    <div class="mt-3">
+                    <?php
+                    $empSlNo = 1;
+                    foreach ($employeeData as $member_name => $projects) :
+                        // Calculate grand totals for this employee
+                        $grand_estimated_s = 0;
+                        $grand_spent_s = 0;
+
+                        foreach ($projects as $project_name => $tasks) {
+                            foreach ($tasks as $task_name => $task) {
+                                $grand_estimated_s += $task['estimated_hr'] * 3600;
+                                $grand_spent_s += $task['total_spent_seconds'];
+                            }
+                        }
+                        $grand_remaining_s = $grand_estimated_s - $grand_spent_s;
+
+                        // Avatar initials
+                        $nameParts = explode(' ', $member_name);
+                        $initials = strtoupper(substr($nameParts[0], 0, 1) . (isset($nameParts[1]) ? substr($nameParts[1], 0, 1) : ''));
+                    ?>
+                    <div class="per-user-card">
+                        <!-- Card Header -->
+                        <div class="per-user-card-header">
+                            <div class="employee-avatar"><?php echo $initials; ?></div>
+                            <div>
+                                <p class="employee-name"><?php echo $empSlNo . '. ' . $member_name; ?></p>
+                            </div>
+                        </div>
+
+                        <!-- Card Table -->
+                        <div class="table-responsive">
+                            <table class="per-user-card-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th><?php echo app_lang('project'); ?></th>
+                                        <th><?php echo app_lang('datetime'); ?></th>
+                                        <th><?php echo app_lang('task_name'); ?></th>
+                                        <th><?php echo app_lang('estimated_hr'); ?></th>
+                                        <th><?php echo app_lang('time_spent_hr'); ?></th>
+                                        <th><?php echo app_lang('remaining_hr'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                                 <?php
-                                $sl = 1;
+                                $projNo = 1;
+                                foreach ($projects as $project_name => $tasks) :
+                                    // Project subtotals
+                                    $proj_est_s = 0;
+                                    $proj_spent_s = 0;
 
-                                foreach ($groupedData as $groupKey => $items) {
-
-                                    // Group time spent by task
-                                    $taskSummary = [];
-                                    $userTotals = [
-                                        'estimated_hr_s' => 0,
-                                        'spent_seconds' => 0,
-                                        'remaining_seconds' => 0
-                                    ];
-
-                                    foreach ($items as $item) {
-                                        $task_name = $item->task_name ?: '-';
-                                        $estimated_hr = $item->task_estimated_time ? $item->task_estimated_time : 0;
-                                        $spent_seconds = $item->spent_seconds ? $item->spent_seconds : 0;
-
-                                        if (!isset($taskSummary[$task_name])) {
-                                            $taskSummary[$task_name] = [
-                                                'member_name' => $item->member_name,
-                                                'project_name' => $item->project_name,
-                                                'estimated_hr' => $estimated_hr,
-                                                'total_spent_seconds' => 0,
-                                                'logs' => []
-                                            ];
-                                        }
-
-                                        // Accumulate spent time
-                                        $taskSummary[$task_name]['total_spent_seconds'] += $spent_seconds;
-
-                                        // Keep logs for display
-                                        $taskSummary[$task_name]['logs'][] = [
-                                            'datetime' => format_to_datetime($item->work_start_time) . " to " . format_to_datetime($item->work_end_time),
-                                            'spent_seconds' => $spent_seconds
-                                        ];
+                                    // Count total log rows in this project (for project rowspan)
+                                    $projectLogRowCount = 0;
+                                    foreach ($tasks as $task_name => $task) {
+                                        $projectLogRowCount += count($task['logs']);
+                                        $proj_est_s += $task['estimated_hr'] * 3600;
+                                        $proj_spent_s += $task['total_spent_seconds'];
                                     }
+                                    $proj_remaining_s = $proj_est_s - $proj_spent_s;
 
-                                    // Calculate total rows for this user (for rowspan)
-                                    $memberRowCount = 0;
-                                    foreach ($taskSummary as $task) {
-                                        $memberRowCount += count($task['logs']);
-                                    }
+                                    $projectPrinted = false;
+                                    $taskNo = 1;
 
-                                    $printedMember = false;
-
-                                    // Output each task
-                                    foreach ($taskSummary as $task_name => $task) {
-                                        $estimated_hr_s = $task['estimated_hr'] * 3600;
-                                        $remaining_seconds = $estimated_hr_s - $task['total_spent_seconds'];
-
-                                        // Add to per-user totals
-                                        $userTotals['estimated_hr_s'] += $estimated_hr_s;
-                                        $userTotals['spent_seconds'] += $task['total_spent_seconds'];
-                                        $userTotals['remaining_seconds'] += $remaining_seconds;
-
-                                        $remaining_hr = convert_seconds_to_time_format($remaining_seconds);
-                                        $spent_hr = convert_seconds_to_time_format($task['total_spent_seconds']);
-
-                                        if ($remaining_seconds < 0) {
-                                            $remaining_hr .= '&nbsp;(+)';
-                                        }
-
+                                    foreach ($tasks as $task_name => $task) :
+                                        $est_s = $task['estimated_hr'] * 3600;
+                                        $spent_s = $task['total_spent_seconds'];
+                                        $remaining_s = $est_s - $spent_s;
+                                        $spent_fmt = convert_seconds_to_time_format($spent_s);
+                                        $remaining_fmt = convert_seconds_to_time_format($remaining_s);
+                                        if ($remaining_s < 0) $remaining_fmt .= '&nbsp;(+)';
                                         $rowCount = count($task['logs']);
-                                        $firstRow = true;
+                                        $firstLog = true;
 
-                                        foreach ($task['logs'] as $log) { ?>
-                                            <tr>
-                                                <?php if (!$printedMember) { ?>
-                                                    <td rowspan="<?php echo $memberRowCount; ?>"><?php echo $sl; ?></td>
-                                                    <td rowspan="<?php echo $memberRowCount; ?>"><?php echo $task['member_name']; ?>
-                                                    </td>
-                                                    <?php $printedMember = true; ?>
-                                                <?php } ?>
+                                        foreach ($task['logs'] as $log) :
+                                        ?>
+                                        <tr>
+                                            <?php if (!$projectPrinted) : ?>
+                                                <td rowspan="<?php echo $projectLogRowCount; ?>" class="project-name-cell"><?php echo $projNo; ?></td>
+                                                <td rowspan="<?php echo $projectLogRowCount; ?>" class="project-name-cell"><?php echo $project_name; ?></td>
+                                                <?php $projectPrinted = true; ?>
+                                            <?php endif; ?>
 
-                                                <?php if ($firstRow) { ?>
-                                                    <td rowspan="<?php echo $rowCount; ?>"><?php echo $task['project_name']; ?></td>
-                                                <?php } ?>
+                                            <td><?php echo $log['datetime']; ?></td>
+                                            <td><?php echo $task_name; ?></td>
 
-                                                <td><?php echo $log['datetime']; ?></td>
-                                                <td><?php echo $task_name; ?></td>
-
-                                                <?php if ($firstRow) { ?>
-                                                    <td rowspan="<?php echo $rowCount; ?>"><?php echo $task['estimated_hr']; ?></td>
-                                                    <td rowspan="<?php echo $rowCount; ?>"><?php echo $spent_hr; ?></td>
-                                                    <td rowspan="<?php echo $rowCount; ?>"><?php echo $remaining_hr; ?></td>
-                                                <?php } ?>
-                                            </tr>
-                                            <?php
-                                            $firstRow = false;
-                                        }
-                                    }
-
-                                    // --- Per-user total row ---
-                                    $total_estimated_hr = convert_seconds_to_time_format($userTotals['estimated_hr_s']);
-                                    $total_spent_hr = convert_seconds_to_time_format($userTotals['spent_seconds']);
-                                    $total_remaining_hr = convert_seconds_to_time_format($userTotals['remaining_seconds']);
+                                            <?php if ($firstLog) : ?>
+                                                <td rowspan="<?php echo $rowCount; ?>"><?php echo $task['estimated_hr']; ?></td>
+                                                <td rowspan="<?php echo $rowCount; ?>"><?php echo $spent_fmt; ?></td>
+                                                <td rowspan="<?php echo $rowCount; ?>"><?php echo $remaining_fmt; ?></td>
+                                            <?php endif; ?>
+                                        </tr>
+                                        <?php
+                                        $firstLog = false;
+                                        endforeach;
+                                        $taskNo++;
+                                    endforeach;
                                     ?>
-                                    <tr style="font-weight:bold; background:#f2f2f2;">
-                                        <td colspan="5" class="text-end">Total for <?php echo $task['project_name']; ?>:
+                                    <!-- Project Subtotal Row -->
+                                    <tr class="project-subtotal">
+                                        <td colspan="4" class="text-end">
+                                            Total for <strong><?php echo $project_name; ?></strong>:
                                         </td>
-                                        <td><?php echo $total_estimated_hr; ?></td>
-                                        <td><?php echo $total_spent_hr; ?></td>
-                                        <td><?php echo $total_remaining_hr; ?></td>
+                                        <td><?php echo convert_seconds_to_time_format($proj_est_s); ?></td>
+                                        <td><?php echo convert_seconds_to_time_format($proj_spent_s); ?></td>
+                                        <td><?php echo convert_seconds_to_time_format($proj_remaining_s); ?></td>
                                     </tr>
                                     <?php
-                                    $sl++;
-                                }
+                                    $projNo++;
+                                endforeach;
                                 ?>
-                            </tbody>
-                        </table>
-
-
-
-
+                                </tbody>
+                                <!-- Grand Total Footer -->
+                                <tfoot>
+                                    <tr class="grand-total">
+                                        <td colspan="4" class="text-end">
+                                            🏁 Grand Total for <strong><?php echo $member_name; ?></strong>:
+                                        </td>
+                                        <td><?php echo convert_seconds_to_time_format($grand_estimated_s); ?></td>
+                                        <td><?php echo convert_seconds_to_time_format($grand_spent_s); ?></td>
+                                        <td><?php echo convert_seconds_to_time_format($grand_remaining_s); ?></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <?php
+                    $empSlNo++;
+                    endforeach;
+                    ?>
                     </div>
                 </div>
                 <div role="tabpanel" class="tab-pane fade" id="resource-utilization-report">
@@ -419,6 +476,166 @@
                                 <?php } ?>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- =================== TEAM WISE REPORT TAB =================== -->
+                <div role="tabpanel" class="tab-pane fade" id="team-wise-report">
+
+                    <style>
+                        .team-report-card {
+                            margin-bottom: 20px;
+                            border: 1px solid #dee2e6;
+                            border-radius: 10px;
+                            overflow: hidden;
+                            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+                        }
+                        .team-report-header {
+                            background: linear-gradient(135deg, #1a4fa0 0%, #2563eb 100%);
+                            color: #fff;
+                            padding: 12px 18px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            cursor: pointer;
+                        }
+                        .team-report-header .team-title {
+                            font-size: 15px;
+                            font-weight: 700;
+                            display: flex;
+                            align-items: center;
+                            gap: 10px;
+                        }
+                        .team-report-header .team-badges {
+                            display: flex;
+                            gap: 8px;
+                            flex-wrap: wrap;
+                        }
+                        .team-badge {
+                            background: rgba(255,255,255,0.18);
+                            border: 1px solid rgba(255,255,255,0.35);
+                            border-radius: 20px;
+                            padding: 2px 12px;
+                            font-size: 12px;
+                            font-weight: 600;
+                            white-space: nowrap;
+                        }
+                        .team-badge.badge-created  { background: rgba(34,197,94,0.25); border-color: rgba(34,197,94,0.5); }
+                        .team-badge.badge-updated  { background: rgba(234,179,8,0.25);  border-color: rgba(234,179,8,0.5); }
+                        .team-badge.badge-logs     { background: rgba(239,68,68,0.25);  border-color: rgba(239,68,68,0.5); }
+                        .team-report-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                        }
+                        .team-report-table th,
+                        .team-report-table td {
+                            border: 1px solid #e2e8f0;
+                            padding: 8px 12px;
+                            text-align: center;
+                            font-size: 13px;
+                            vertical-align: middle;
+                        }
+                        .team-report-table th {
+                            background: #f0f4ff;
+                            font-weight: 600;
+                            color: #374151;
+                        }
+                        .team-report-table td:first-child,
+                        .team-report-table th:first-child { text-align: left; }
+                        .team-report-table .member-name-cell { font-weight: 500; color: #1e293b; }
+                        .team-report-table .total-row td {
+                            background: #dbeafe;
+                            font-weight: 700;
+                            color: #1e3a8a;
+                            border-top: 2px solid #2563eb;
+                        }
+                        .badge-num {
+                            display: inline-block;
+                            min-width: 28px;
+                            background: #2563eb;
+                            color: #fff;
+                            border-radius: 12px;
+                            padding: 1px 7px;
+                            font-size: 12px;
+                            font-weight: 700;
+                        }
+                        .badge-num.green  { background: #16a34a; }
+                        .badge-num.yellow { background: #ca8a04; }
+                        .badge-num.red    { background: #dc2626; }
+                        @media print { .team-report-card { page-break-inside: avoid; } }
+                    </style>
+
+                    <div class="mt-3">
+                        <p class="text-muted mb-3" style="font-size:13px;">
+                            <i data-feather="calendar" class="icon-14"></i>
+                            Report Period: <strong><?php echo $team_report_date_label; ?></strong>
+                            &nbsp;|&nbsp; Showing tasks <strong>created</strong>, <strong>updated</strong>, or with <strong>activity logs</strong> within the selected date range.
+                        </p>
+
+                    <?php if (empty($team_wise_report)): ?>
+                        <div class="alert alert-info">No teams found.</div>
+                    <?php else: ?>
+
+                    <?php foreach ($team_wise_report as $team): ?>
+                    <div class="team-report-card">
+                        <div class="team-report-header" data-bs-toggle="collapse" data-bs-target="#team-collapse-<?php echo $team['team_id']; ?>">
+                            <div class="team-title">
+                                <i data-feather="users" class="icon-16"></i>
+                                <?php echo htmlspecialchars($team['team_name']); ?>
+                                <small style="font-weight:400; opacity:.8;">(<?php echo count($team['projects']); ?> projects)</small>
+                            </div>
+                            <div class="team-badges">
+                                <span class="team-badge">Total Tasks: <?php echo $team['total_tasks']; ?></span>
+                                <?php foreach ($team_task_statuses as $ts): ?>
+                                    <span class="team-badge"><?php echo htmlspecialchars($ts->title); ?>: <?php echo $team['status_totals'][$ts->id] ?? 0; ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <div id="team-collapse-<?php echo $team['team_id']; ?>" class="collapse show">
+                            <div class="table-responsive">
+                                <table class="team-report-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Project Name</th>
+                                            <th>Total Tasks</th>
+                                            <?php foreach ($team_task_statuses as $ts): ?>
+                                                <th><?php echo htmlspecialchars($ts->title); ?></th>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <?php if (empty($team['projects'])): ?>
+                                        <tr><td colspan="<?php echo 3 + count($team_task_statuses); ?>" class="text-center text-muted">No projects found for this team.</td></tr>
+                                    <?php else: ?>
+                                    <?php $pSlNo = 1; foreach ($team['projects'] as $proj): ?>
+                                        <tr>
+                                            <td><?php echo $pSlNo++; ?></td>
+                                            <td class="member-name-cell"><?php echo htmlspecialchars($proj->project_name); ?></td>
+                                            <td><span class="badge-num"><?php echo $proj->total_tasks; ?></span></td>
+                                            <?php foreach ($team_task_statuses as $ts):
+                                                $col = "status_{$ts->id}_count"; ?>
+                                                <td><span class="badge-num" style="background:<?php echo $ts->color ?: '#2563eb'; ?>;"><?php echo $proj->$col ?? 0; ?></span></td>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    <?php endif; ?>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="total-row">
+                                            <td colspan="2" style="text-align:right;">🏁 Team Total:</td>
+                                            <td><?php echo $team['total_tasks']; ?></td>
+                                            <?php foreach ($team_task_statuses as $ts): ?>
+                                                <td><?php echo $team['status_totals'][$ts->id] ?? 0; ?></td>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
                     </div>
                 </div>
             </div>

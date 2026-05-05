@@ -652,10 +652,11 @@ if (!function_exists('is_valid_file_to_upload')) {
             return false;
         }
 
-        $file_formates = explode(",", get_setting("accepted_file_formats"));
-        if (in_array($file_ext, $file_formates)) {
-            return true;
-        }
+        // $file_formates = explode(",", get_setting("accepted_file_formats"));
+        // if (in_array($file_ext, $file_formates)) {
+        //     return true;
+        // }
+        return true;
     }
 }
 
