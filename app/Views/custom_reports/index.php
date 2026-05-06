@@ -665,26 +665,59 @@
                 <div role="tabpanel" class="tab-pane fade" id="effort-report">
                     <style>
                         .effort-table-wrap { overflow-x: auto; }
+                        .effort-table-wrap { overflow-x: auto; position: relative; cursor: grab; user-select: none; }
                         .effort-table {
-                            width: 100%;
-                            border-collapse: collapse;
+                            border-collapse: separate;
+                            border-spacing: 0;
                             font-size: 12px;
                             white-space: nowrap;
                         }
                         .effort-table th, .effort-table td {
-                            border: 1px solid #cbd5e1;
+                            border-right: 1px solid #cbd5e1;
+                            border-bottom: 1px solid #cbd5e1;
                             padding: 5px 8px;
                             text-align: center;
                             vertical-align: middle;
                         }
+                        .effort-table thead tr:first-child th { border-top: 1px solid #cbd5e1; }
+                        .effort-table th:first-child, .effort-table td:first-child { border-left: 1px solid #cbd5e1; }
                         .effort-table th { background: #1e3a8a; color:#fff; font-weight:600; }
                         .effort-table .th-sub { background: #2563eb; color:#fff; }
-                        .effort-table td.left  { text-align: left; }
                         .effort-table .neg     { color: #dc2626; font-weight:600; }
                         .effort-table .pos     { color: #16a34a; font-weight:600; }
                         .effort-table .total-row td { background:#dbeafe; font-weight:700; color:#1e3a8a; border-top:2px solid #2563eb; }
                         .effort-table .util-row td  { background:#fef9c3; font-weight:600; color:#92400e; }
                         .effort-table .member-col   { background:#f0f4ff; }
+                        /* Sticky column styles */
+                        .effort-table .sc { position: sticky; z-index: 2; }
+                        .effort-table thead .sc { z-index: 3; }
+                        .effort-table .sc-1  { left: 0;     min-width: 32px;  background: #1e3a8a; }
+                        .effort-table .sc-2  { left: 32px;  min-width: 170px; background: #1e3a8a; text-align: left; white-space: normal; word-break: break-word; }
+                        .effort-table .sc-3  { left: 202px; min-width: 44px;  background: #1e3a8a; }
+                        .effort-table .sc-4  { left: 246px; min-width: 88px;  background: #1e3a8a; }
+                        .effort-table .sc-eff{ left: 334px; min-width: 252px; background: #1e3a8a; }
+                        .effort-table .sc-5  { left: 334px; min-width: 84px;  background: #2563eb; }
+                        .effort-table .sc-6  { left: 418px; min-width: 84px;  background: #2563eb; }
+                        .effort-table .sc-7  { left: 502px; min-width: 84px;  background: #2563eb; }
+                        /* Data/footer rows sticky cells get white-ish bg */
+                        .effort-table tbody td.sc, .effort-table tfoot td.sc {
+                            background: #fff;
+                        }
+                        .effort-table .total-row td.sc { background: #dbeafe; }
+                        .effort-table .util-row  td.sc { background: #fef9c3; }
+                        .effort-table .sc-shadow { box-shadow: 3px 0 6px -2px rgba(0,0,0,0.15); }
+                        /* Zebra striping */
+                        .effort-table tbody tr:nth-child(odd)  td { background: #f8faff; }
+                        .effort-table tbody tr:nth-child(even) td { background: #eef3ff; }
+                        .effort-table tbody tr:nth-child(odd)  td.sc { background: #f8faff; }
+                        .effort-table tbody tr:nth-child(even) td.sc { background: #eef3ff; }
+                        .effort-table tbody tr:nth-child(odd)  td.member-col { background: #f0f4ff; }
+                        .effort-table tbody tr:nth-child(even) td.member-col { background: #e6edff; }
+                        /* Selected row highlight */
+                        .effort-table tbody tr.row-selected td { background: #fef08a !important; }
+                        .effort-table tbody tr.row-selected td.sc { background: #fef08a !important; }
+                        .effort-table tbody tr { cursor: pointer; }
+                        .effort-table tbody tr:hover td { filter: brightness(0.96); }
                         .effort-title {
                             text-align:center;
                             color:#dc2626;
@@ -700,7 +733,8 @@
                         }
                         @media print {
                             .effort-table-wrap { overflow: visible; }
-                            .effort-table { font-size:10px; }
+                            .effort-table { font-size:10px; border-collapse: collapse; }
+                            .effort-table .sc { position: static; }
                         }
                     </style>
 
@@ -729,23 +763,24 @@
                         <div class="effort-title">Project Wise Effort</div>
                         <div class="effort-subtitle"><?php echo $effort_date_label; ?> &nbsp;|&nbsp; Working Days: <strong><?php echo $effort_working_days; ?></strong> &nbsp;|&nbsp; Capacity per member: <strong><?php echo $effort_working_days * 8; ?> hrs</strong></div>
 
-                        <div class="effort-table-wrap">
+                        <div class="effort-table-wrap" id="effort-table-wrap">
                             <table class="effort-table">
                                 <thead>
                                     <tr>
-                                        <th rowspan="2">#</th>
-                                        <th rowspan="2" class="left">Project Name</th>
-                                        <th rowspan="2">Type</th>
-                                        <th rowspan="2">Due Efforts</th>
-                                        <th colspan="3">Efforts</th>
-                                        <?php foreach ($effort_staff as $es): ?>
+                                        <th rowspan="2" class="sc sc-1">#</th>
+                                        <th rowspan="2" class="sc sc-2">Project Name</th>
+                                        <th rowspan="2" class="sc sc-3">Type</th>
+                                        <th rowspan="2" class="sc sc-4">Due Efforts</th>
+                                        <th colspan="3" class="sc sc-eff">Efforts</th>
+                                        <?php foreach ($effort_staff as $es):
+                                            if (($eff_member_totals[$es->id] ?? 0) == 0) continue; ?>
                                             <th rowspan="2"><?php echo htmlspecialchars($es->first_name); ?></th>
                                         <?php endforeach; ?>
                                     </tr>
                                     <tr>
-                                        <th class="th-sub">Estimated</th>
-                                        <th class="th-sub">Preceding</th>
-                                        <th class="th-sub">Current</th>
+                                        <th class="sc sc-5 th-sub">Estimated</th>
+                                        <th class="sc sc-6 th-sub">Preceding</th>
+                                        <th class="sc sc-7 th-sub sc-shadow">Current</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -758,17 +793,18 @@
                                         $type_label = $ep->project_type === 'client_project' ? 'C' : 'I';
                                     ?>
                                     <tr>
-                                        <td><?php echo $pNo++; ?></td>
-                                        <td class="left"><?php echo htmlspecialchars($ep->project_name); ?></td>
-                                        <td><?php echo $type_label; ?></td>
-                                        <td class="<?php echo $due < 0 ? 'neg' : 'pos'; ?>">
+                                        <td class="sc sc-1"><?php echo $pNo++; ?></td>
+                                        <td class="sc sc-2"><?php echo htmlspecialchars($ep->project_name); ?></td>
+                                        <td class="sc sc-3"><?php echo $type_label; ?></td>
+                                        <td class="sc sc-4 <?php echo $due < 0 ? 'neg' : 'pos'; ?>">
                                             <?php echo $due < 0 ? '(' . number_format(abs($due), 2) . ')' : number_format($due, 2); ?>
                                         </td>
-                                        <td><?php echo $est > 0 ? number_format($est, 2) : '-'; ?></td>
-                                        <td><?php echo $prec > 0 ? number_format($prec, 2) : '-'; ?></td>
-                                        <td><?php echo $curr > 0 ? number_format($curr, 2) : '-'; ?></td>
-                                        <?php foreach ($effort_staff as $es): ?>
-                                            <?php $mh = $effort_member_hours[$ep->project_id][$es->id] ?? 0; ?>
+                                        <td class="sc sc-5"><?php echo $est > 0 ? number_format($est, 2) : '-'; ?></td>
+                                        <td class="sc sc-6"><?php echo $prec > 0 ? number_format($prec, 2) : '-'; ?></td>
+                                        <td class="sc sc-7 sc-shadow"><?php echo $curr > 0 ? number_format($curr, 2) : '-'; ?></td>
+                                        <?php foreach ($effort_staff as $es):
+                                            if (($eff_member_totals[$es->id] ?? 0) == 0) continue;
+                                            $mh = $effort_member_hours[$ep->project_id][$es->id] ?? 0; ?>
                                             <td class="member-col"><?php echo $mh > 0 ? number_format($mh, 2) : '-'; ?></td>
                                         <?php endforeach; ?>
                                     </tr>
@@ -777,26 +813,31 @@
                                 <tfoot>
                                     <!-- Total Row -->
                                     <tr class="total-row">
-                                        <td colspan="2" class="left">Total</td>
-                                        <td></td>
-                                        <td class="<?php echo $eff_total_due < 0 ? 'neg' : 'pos'; ?>">
+                                        <td class="sc sc-1" style="text-align:left;">Total</td>
+                                        <td class="sc sc-2" style="text-align:left;"></td>
+                                        <td class="sc sc-3"></td>
+                                        <td class="sc sc-4 <?php echo $eff_total_due < 0 ? 'neg' : 'pos'; ?>">
                                             <?php echo $eff_total_due < 0 ? '(' . number_format(abs($eff_total_due), 2) . ')' : number_format($eff_total_due, 2); ?>
                                         </td>
-                                        <td><?php echo number_format($eff_total_est, 2); ?></td>
-                                        <td><?php echo number_format($eff_total_preceding, 2); ?></td>
-                                        <td><?php echo number_format($eff_total_current, 2); ?></td>
-                                        <?php foreach ($effort_staff as $es): ?>
+                                        <td class="sc sc-5"><?php echo number_format($eff_total_est, 2); ?></td>
+                                        <td class="sc sc-6"><?php echo number_format($eff_total_preceding, 2); ?></td>
+                                        <td class="sc sc-7 sc-shadow"><?php echo number_format($eff_total_current, 2); ?></td>
+                                        <?php foreach ($effort_staff as $es):
+                                            if (($eff_member_totals[$es->id] ?? 0) == 0) continue; ?>
                                             <td class="member-col"><?php echo number_format($eff_member_totals[$es->id], 2); ?></td>
                                         <?php endforeach; ?>
                                     </tr>
                                     <!-- Utilization Row -->
                                     <tr class="util-row">
-                                        <td colspan="3" class="left">Utilization (%) &nbsp;<strong>[<?php echo $effort_working_days * 8; ?>]</strong></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td><?php echo $total_capacity > 0 ? number_format(($eff_total_current / $total_capacity) * 100, 2) : '-'; ?>%</td>
+                                        <td class="sc sc-1" colspan="1" style="text-align:left;">Util (%)</td>
+                                        <td class="sc sc-2" style="text-align:left;"><strong>[<?php echo $effort_working_days * 8; ?> hrs]</strong></td>
+                                        <td class="sc sc-3"></td>
+                                        <td class="sc sc-4"></td>
+                                        <td class="sc sc-5"></td>
+                                        <td class="sc sc-6"></td>
+                                        <td class="sc sc-7 sc-shadow"><?php echo $total_capacity > 0 ? number_format(($eff_total_current / $total_capacity) * 100, 2) : '-'; ?>%</td>
                                         <?php foreach ($effort_staff as $es):
+                                            if (($eff_member_totals[$es->id] ?? 0) == 0) continue;
                                             $cap = $effort_working_days * 8;
                                             $util = $cap > 0 ? ($eff_member_totals[$es->id] / $cap) * 100 : 0;
                                         ?>
@@ -847,4 +888,35 @@
         window.print();
         document.body.innerHTML = originalContent;
     }
+    // Drag-to-scroll on effort table
+    (function() {
+        var el = document.getElementById('effort-table-wrap');
+        if (!el) return;
+        var isDown = false, startX, scrollLeft, moved = false;
+        el.addEventListener('mousedown', function(e) {
+            isDown = true; moved = false;
+            el.style.cursor = 'grabbing';
+            startX = e.pageX - el.offsetLeft;
+            scrollLeft = el.scrollLeft;
+        });
+        el.addEventListener('mouseleave', function() { isDown = false; el.style.cursor = 'grab'; });
+        el.addEventListener('mouseup',    function() { isDown = false; el.style.cursor = 'grab'; });
+        el.addEventListener('mousemove',  function(e) {
+            if (!isDown) return;
+            e.preventDefault();
+            moved = true;
+            var x    = e.pageX - el.offsetLeft;
+            var walk = (x - startX) * 1.5;
+            el.scrollLeft = scrollLeft - walk;
+        });
+        // Row click-to-select (only if not dragging)
+        el.addEventListener('click', function(e) {
+            if (moved) return;
+            var tr = e.target.closest('tbody tr');
+            if (!tr) return;
+            var wasSelected = tr.classList.contains('row-selected');
+            el.querySelectorAll('tbody tr').forEach(function(r) { r.classList.remove('row-selected'); });
+            if (!wasSelected) tr.classList.add('row-selected');
+        });
+    })();
 </script>
