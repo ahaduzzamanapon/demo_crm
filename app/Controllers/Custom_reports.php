@@ -473,6 +473,105 @@ class Custom_reports extends Security_Controller
         $view_data['team_task_statuses']    = $task_statuses;   // reuse for column headers
         $view_data['team_report_date_label'] = $start_date . ' to ' . $end_date;
 
+        // =====================================================
+        // Project Wise Effort Report
+        // =====================================================
+        $pt  = $this->db->prefixTable('project_time');
+        $ptb = $this->db->prefixTable('projects');
+        $utb = $this->db->prefixTable('users');
+        $ttb = $this->db->prefixTable('tasks');
+
+        // All active staff — filter by member_id if set
+        $effort_staff_where = ['user_type' => 'staff', 'deleted' => 0, 'status' => 'active'];
+        if ($member_id) {
+            $effort_staff_where['id'] = $member_id;
+        }
+        $effort_staff = $this->Users_model->get_all_where($effort_staff_where)->getResult();
+
+        $proj_filter = $project_id ? "AND p.id = " . (int)$project_id : "";
+        // If member filter is set, restrict to projects where that member has logged time
+        $member_proj_filter = "";
+        if ($member_id) {
+            $member_proj_filter = "AND p.id IN (SELECT DISTINCT project_id FROM $pt WHERE deleted=0 AND status='logged' AND user_id=" . (int)$member_id . ")";
+        }
+        $effort_member_filter_prec = $member_id ? " AND pt2.user_id = " . (int)$member_id : "";
+        $effort_member_filter_curr = $member_id ? " AND pt2.user_id = " . (int)$member_id : "";
+
+        $sql_effort = "
+            SELECT
+                p.id              AS project_id,
+                p.title           AS project_name,
+                p.project_type,
+                COALESCE((SELECT SUM(t.estimated_time)
+                           FROM $ttb t
+                           WHERE t.project_id = p.id AND t.deleted = 0), 0) AS estimated_hours,
+                COALESCE((
+                    SELECT (
+                        COALESCE(SUM(IF(pt2.end_time IS NOT NULL, TIME_TO_SEC(TIMEDIFF(pt2.end_time, pt2.start_time)), 0)), 0)
+                        + COALESCE(SUM(pt2.hours * 3600), 0)
+                    ) / 3600
+                    FROM $pt pt2
+                    WHERE pt2.project_id = p.id AND pt2.deleted = 0 AND pt2.status = 'logged'
+                      AND DATE(pt2.start_time) < '$start_date' $effort_member_filter_prec
+                ), 0) AS preceding_hours,
+                COALESCE((
+                    SELECT (
+                        COALESCE(SUM(IF(pt2.end_time IS NOT NULL, TIME_TO_SEC(TIMEDIFF(pt2.end_time, pt2.start_time)), 0)), 0)
+                        + COALESCE(SUM(pt2.hours * 3600), 0)
+                    ) / 3600
+                    FROM $pt pt2
+                    WHERE pt2.project_id = p.id AND pt2.deleted = 0 AND pt2.status = 'logged'
+                      AND DATE(pt2.start_time) BETWEEN '$start_date' AND '$end_date' $effort_member_filter_curr
+                ), 0) AS current_hours
+            FROM $ptb p
+            WHERE p.deleted = 0 $proj_filter $member_proj_filter
+            ORDER BY p.title
+        ";
+        $effort_projects = $this->db->query($sql_effort)->getResult();
+
+        // Per-project per-member hours (current period only)
+        $effort_member_hours = []; // [project_id][user_id] = hours
+        if (!empty($effort_projects)) {
+            $proj_ids = implode(',', array_column($effort_projects, 'project_id'));
+            $staff_ids = implode(',', array_column($effort_staff, 'id') ?: [0]);
+            if ($proj_ids && $staff_ids) {
+                $sql_mh = "
+                    SELECT project_id, user_id,
+                        (
+                            COALESCE(SUM(IF(end_time IS NOT NULL, TIME_TO_SEC(TIMEDIFF(end_time, start_time)), 0)), 0)
+                            + COALESCE(SUM(hours * 3600), 0)
+                        ) / 3600 AS hours
+                    FROM $pt
+                    WHERE deleted = 0 AND status = 'logged'
+                      AND project_id IN ($proj_ids)
+                      AND user_id IN ($staff_ids)
+                      AND DATE(start_time) BETWEEN '$start_date' AND '$end_date'
+                    GROUP BY project_id, user_id
+                ";
+                foreach ($this->db->query($sql_mh)->getResult() as $row) {
+                    $effort_member_hours[$row->project_id][$row->user_id] = (float)$row->hours;
+                }
+            }
+        }
+
+        // Working days in period (Fri=5, Sat=6 are weekends)
+        $effort_working_days = 0;
+        $d = new \DateTime($start_date);
+        $end_dt = new \DateTime($end_date);
+        while ($d <= $end_dt) {
+            $dow = (int)$d->format('N');
+            if ($dow !== 5 && $dow !== 6) {
+                $effort_working_days++;
+            }
+            $d->modify('+1 day');
+        }
+
+        $view_data['effort_projects']      = $effort_projects;
+        $view_data['effort_staff']         = $effort_staff;
+        $view_data['effort_member_hours']  = $effort_member_hours;
+        $view_data['effort_working_days']  = $effort_working_days;
+        $view_data['effort_date_label']    = "From: " . date('d-F-y', strtotime($start_date)) . " To: " . date('d-F-y', strtotime($end_date));
+
         return $this->template->rander("custom_reports/index", $view_data);
     }
 

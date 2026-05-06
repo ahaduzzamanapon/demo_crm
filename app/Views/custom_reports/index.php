@@ -115,6 +115,8 @@
                         <?php echo app_lang('resource_utilization_report'); ?></a></li>
                 <li class="nav-item"><a class="nav-link" href="#team-wise-report" data-bs-toggle="tab"><i
                             data-feather="users" class="icon-16"></i> Team Wise Report</a></li>
+                <li class="nav-item"><a class="nav-link" href="#effort-report" data-bs-toggle="tab"><i
+                            data-feather="bar-chart-2" class="icon-16"></i> Project Wise Effort</a></li>
             </ul>
             <div class="tab-content">
                 <div role="tabpanel" class="tab-pane fade show active" id="project-report">
@@ -658,6 +660,162 @@
                     <?php endif; ?>
                     </div>
                 </div>
+
+                <!-- =================== PROJECT WISE EFFORT REPORT TAB =================== -->
+                <div role="tabpanel" class="tab-pane fade" id="effort-report">
+                    <style>
+                        .effort-table-wrap { overflow-x: auto; }
+                        .effort-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            font-size: 12px;
+                            white-space: nowrap;
+                        }
+                        .effort-table th, .effort-table td {
+                            border: 1px solid #cbd5e1;
+                            padding: 5px 8px;
+                            text-align: center;
+                            vertical-align: middle;
+                        }
+                        .effort-table th { background: #1e3a8a; color:#fff; font-weight:600; }
+                        .effort-table .th-sub { background: #2563eb; color:#fff; }
+                        .effort-table td.left  { text-align: left; }
+                        .effort-table .neg     { color: #dc2626; font-weight:600; }
+                        .effort-table .pos     { color: #16a34a; font-weight:600; }
+                        .effort-table .total-row td { background:#dbeafe; font-weight:700; color:#1e3a8a; border-top:2px solid #2563eb; }
+                        .effort-table .util-row td  { background:#fef9c3; font-weight:600; color:#92400e; }
+                        .effort-table .member-col   { background:#f0f4ff; }
+                        .effort-title {
+                            text-align:center;
+                            color:#dc2626;
+                            font-weight:700;
+                            font-size:14px;
+                            margin-bottom:4px;
+                        }
+                        .effort-subtitle {
+                            text-align:center;
+                            color:#dc2626;
+                            font-size:12px;
+                            margin-bottom:12px;
+                        }
+                        @media print {
+                            .effort-table-wrap { overflow: visible; }
+                            .effort-table { font-size:10px; }
+                        }
+                    </style>
+
+                    <?php
+                    // Pre-compute totals
+                    $eff_total_est       = 0;
+                    $eff_total_preceding = 0;
+                    $eff_total_current   = 0;
+                    $eff_member_totals   = []; // user_id => total hours
+                    foreach ($effort_staff as $es) { $eff_member_totals[$es->id] = 0; }
+
+                    foreach ($effort_projects as $ep) {
+                        $eff_total_est       += (float)$ep->estimated_hours;
+                        $eff_total_preceding += (float)$ep->preceding_hours;
+                        $eff_total_current   += (float)$ep->current_hours;
+                        foreach ($effort_staff as $es) {
+                            $mh = $effort_member_hours[$ep->project_id][$es->id] ?? 0;
+                            $eff_member_totals[$es->id] += $mh;
+                        }
+                    }
+                    $eff_total_due = $eff_total_est - ($eff_total_preceding + $eff_total_current);
+                    $total_capacity = count($effort_staff) * $effort_working_days * 8; // total capacity in hours
+                    ?>
+
+                    <div class="mt-3">
+                        <div class="effort-title">Project Wise Effort</div>
+                        <div class="effort-subtitle"><?php echo $effort_date_label; ?> &nbsp;|&nbsp; Working Days: <strong><?php echo $effort_working_days; ?></strong> &nbsp;|&nbsp; Capacity per member: <strong><?php echo $effort_working_days * 8; ?> hrs</strong></div>
+
+                        <div class="effort-table-wrap">
+                            <table class="effort-table">
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">#</th>
+                                        <th rowspan="2" class="left">Project Name</th>
+                                        <th rowspan="2">Type</th>
+                                        <th rowspan="2">Due Efforts</th>
+                                        <th colspan="3">Efforts</th>
+                                        <?php foreach ($effort_staff as $es): ?>
+                                            <th rowspan="2"><?php echo htmlspecialchars($es->first_name); ?></th>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                    <tr>
+                                        <th class="th-sub">Estimated</th>
+                                        <th class="th-sub">Preceding</th>
+                                        <th class="th-sub">Current</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php $pNo = 1; foreach ($effort_projects as $ep): ?>
+                                    <?php
+                                        $est  = (float)$ep->estimated_hours;
+                                        $prec = (float)$ep->preceding_hours;
+                                        $curr = (float)$ep->current_hours;
+                                        $due  = $est - ($prec + $curr);
+                                        $type_label = $ep->project_type === 'client_project' ? 'C' : 'I';
+                                    ?>
+                                    <tr>
+                                        <td><?php echo $pNo++; ?></td>
+                                        <td class="left"><?php echo htmlspecialchars($ep->project_name); ?></td>
+                                        <td><?php echo $type_label; ?></td>
+                                        <td class="<?php echo $due < 0 ? 'neg' : 'pos'; ?>">
+                                            <?php echo $due < 0 ? '(' . number_format(abs($due), 2) . ')' : number_format($due, 2); ?>
+                                        </td>
+                                        <td><?php echo $est > 0 ? number_format($est, 2) : '-'; ?></td>
+                                        <td><?php echo $prec > 0 ? number_format($prec, 2) : '-'; ?></td>
+                                        <td><?php echo $curr > 0 ? number_format($curr, 2) : '-'; ?></td>
+                                        <?php foreach ($effort_staff as $es): ?>
+                                            <?php $mh = $effort_member_hours[$ep->project_id][$es->id] ?? 0; ?>
+                                            <td class="member-col"><?php echo $mh > 0 ? number_format($mh, 2) : '-'; ?></td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                                <tfoot>
+                                    <!-- Total Row -->
+                                    <tr class="total-row">
+                                        <td colspan="2" class="left">Total</td>
+                                        <td></td>
+                                        <td class="<?php echo $eff_total_due < 0 ? 'neg' : 'pos'; ?>">
+                                            <?php echo $eff_total_due < 0 ? '(' . number_format(abs($eff_total_due), 2) . ')' : number_format($eff_total_due, 2); ?>
+                                        </td>
+                                        <td><?php echo number_format($eff_total_est, 2); ?></td>
+                                        <td><?php echo number_format($eff_total_preceding, 2); ?></td>
+                                        <td><?php echo number_format($eff_total_current, 2); ?></td>
+                                        <?php foreach ($effort_staff as $es): ?>
+                                            <td class="member-col"><?php echo number_format($eff_member_totals[$es->id], 2); ?></td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                    <!-- Utilization Row -->
+                                    <tr class="util-row">
+                                        <td colspan="3" class="left">Utilization (%) &nbsp;<strong>[<?php echo $effort_working_days * 8; ?>]</strong></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td><?php echo $total_capacity > 0 ? number_format(($eff_total_current / $total_capacity) * 100, 2) : '-'; ?>%</td>
+                                        <?php foreach ($effort_staff as $es):
+                                            $cap = $effort_working_days * 8;
+                                            $util = $cap > 0 ? ($eff_member_totals[$es->id] / $cap) * 100 : 0;
+                                        ?>
+                                            <td class="member-col"><?php echo number_format($util, 2); ?>%</td>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Legend -->
+                        <div class="mt-3" style="display:inline-block; border:1px solid #cbd5e1; padding:10px 16px; border-radius:6px; font-size:12px;">
+                            <strong>Project Type Legend:</strong><br>
+                            C &ndash; Client Project<br>
+                            I &ndash; Internal Project
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
