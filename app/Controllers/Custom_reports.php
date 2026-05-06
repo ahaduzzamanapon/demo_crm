@@ -335,10 +335,12 @@ class Custom_reports extends Security_Controller
         $projects_table_tw   = $this->db->prefixTable('projects');
 
         // Re-use $task_statuses already fetched above for the project-report section
-        // Build dynamic per-status SUM columns
+        // Build dynamic per-status SUM columns (date-filtered via LEFT JOIN)
         $tw_status_columns = "";
+        $tw_overall_status_columns = "";
         foreach ($task_statuses as $ts) {
             $tw_status_columns .= ", SUM(CASE WHEN t.status_id = {$ts->id} THEN 1 ELSE 0 END) AS status_{$ts->id}_count";
+            // overall_status built as subquery placeholder — will be filled per-team inside loop
         }
 
         // Get all active teams
@@ -394,13 +396,30 @@ class Custom_reports extends Security_Controller
                 )";
             }
 
+            // Build per-status overall subqueries (no date filter, per-team member set)
+            $tw_overall_status_sq = "";
+            foreach ($task_statuses as $ts) {
+                $tw_overall_status_sq .= ",\n                    (SELECT COUNT(*) FROM $tasks_table_tw tall
+                     WHERE tall.project_id = p.id AND tall.deleted = 0
+                       AND tall.assigned_to IN ($member_ids_str)
+                       AND tall.status_id = {$ts->id}) AS overall_status_{$ts->id}_count";
+            }
+
             // Get ALL projects where ANY team member is a project_member
             // Then LEFT JOIN tasks (with date+member filter) — project shows even if tasks=0
             $sql_proj = "
                 SELECT
                     p.id        AS project_id,
                     p.title     AS project_name,
-                    COUNT(DISTINCT t.id) AS total_tasks
+                    COUNT(DISTINCT t.id) AS total_tasks,
+                    (
+                        SELECT COUNT(*)
+                        FROM $tasks_table_tw tall
+                        WHERE tall.project_id = p.id
+                          AND tall.deleted = 0
+                          AND tall.assigned_to IN ($member_ids_str)
+                    ) AS overall_tasks
+                    $tw_overall_status_sq
                     $tw_status_columns
                 FROM $projects_table_tw p
                 INNER JOIN $project_members_tw pm
@@ -419,26 +438,34 @@ class Custom_reports extends Security_Controller
 
             $projects_data = $this->db->query($sql_proj)->getResult();
 
-            // Compute team-level totals (total + per-status)
-            $team_total_tasks   = 0;
-            $team_status_totals = [];
+            // Compute team-level totals (total + overall + per-status + overall-per-status)
+            $team_total_tasks          = 0;
+            $team_overall_tasks        = 0;
+            $team_status_totals        = [];
+            $team_overall_status_totals = [];
             foreach ($task_statuses as $ts) {
-                $team_status_totals[$ts->id] = 0;
+                $team_status_totals[$ts->id]         = 0;
+                $team_overall_status_totals[$ts->id] = 0;
             }
             foreach ($projects_data as $proj) {
-                $team_total_tasks += $proj->total_tasks;
+                $team_total_tasks   += $proj->total_tasks;
+                $team_overall_tasks += $proj->overall_tasks;
                 foreach ($task_statuses as $ts) {
-                    $col = "status_{$ts->id}_count";
-                    $team_status_totals[$ts->id] += ($proj->$col ?? 0);
+                    $col         = "status_{$ts->id}_count";
+                    $overall_col = "overall_status_{$ts->id}_count";
+                    $team_status_totals[$ts->id]         += ($proj->$col ?? 0);
+                    $team_overall_status_totals[$ts->id] += ($proj->$overall_col ?? 0);
                 }
             }
 
             $team_wise_report[] = [
-                'team_id'           => $team->id,
-                'team_name'         => $team->title,
-                'projects'          => $projects_data,
-                'total_tasks'       => $team_total_tasks,
-                'status_totals'     => $team_status_totals,
+                'team_id'                    => $team->id,
+                'team_name'                  => $team->title,
+                'projects'                   => $projects_data,
+                'total_tasks'                => $team_total_tasks,
+                'overall_tasks'              => $team_overall_tasks,
+                'status_totals'              => $team_status_totals,
+                'overall_status_totals'      => $team_overall_status_totals,
             ];
         }
 

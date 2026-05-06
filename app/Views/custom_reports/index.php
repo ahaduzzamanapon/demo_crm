@@ -585,9 +585,9 @@
                                 <small style="font-weight:400; opacity:.8;">(<?php echo count($team['projects']); ?> projects)</small>
                             </div>
                             <div class="team-badges">
-                                <span class="team-badge">Total Tasks: <?php echo $team['total_tasks']; ?></span>
+                                <span class="team-badge">Total: <?php echo $team['overall_tasks']; ?> / <?php echo $team['total_tasks']; ?></span>
                                 <?php foreach ($team_task_statuses as $ts): ?>
-                                    <span class="team-badge"><?php echo htmlspecialchars($ts->title); ?>: <?php echo $team['status_totals'][$ts->id] ?? 0; ?></span>
+                                    <span class="team-badge"><?php echo htmlspecialchars($ts->title); ?>: <?php echo ($team['overall_status_totals'][$ts->id] ?? 0) . ' / ' . ($team['status_totals'][$ts->id] ?? 0); ?></span>
                                 <?php endforeach; ?>
                             </div>
                         </div>
@@ -598,9 +598,12 @@
                                         <tr>
                                             <th>#</th>
                                             <th>Project Name</th>
-                                            <th>Total Tasks</th>
+                                            <th>Total Tasks <small style="font-weight:400;display:block;opacity:.75;">(Overall / Active)</small></th>
                                             <?php foreach ($team_task_statuses as $ts): ?>
-                                                <th><?php echo htmlspecialchars($ts->title); ?></th>
+                                                <th style="min-width:90px;">
+                                                    <?php echo htmlspecialchars($ts->title); ?>
+                                                    <small style="font-weight:400;display:block;opacity:.75;">(Overall / Active)</small>
+                                                </th>
                                             <?php endforeach; ?>
                                         </tr>
                                     </thead>
@@ -612,10 +615,19 @@
                                         <tr>
                                             <td><?php echo $pSlNo++; ?></td>
                                             <td class="member-name-cell"><?php echo htmlspecialchars($proj->project_name); ?></td>
-                                            <td><span class="badge-num"><?php echo $proj->total_tasks; ?></span></td>
+                                            <td class="text-center">
+                                                <span class="badge-num" title="Overall tasks in project (team members)"><?php echo $proj->overall_tasks; ?></span>
+                                                <br>
+                                                <span class="badge-num" style="background:#0ea5e9;" title="Active in date range"><?php echo $proj->total_tasks; ?></span>
+                                            </td>
                                             <?php foreach ($team_task_statuses as $ts):
-                                                $col = "status_{$ts->id}_count"; ?>
-                                                <td><span class="badge-num" style="background:<?php echo $ts->color ?: '#2563eb'; ?>;"><?php echo $proj->$col ?? 0; ?></span></td>
+                                                $col = "status_{$ts->id}_count";
+                                                $overall_col = "overall_status_{$ts->id}_count"; ?>
+                                                <td class="text-center">
+                                                    <span class="badge-num" title="Overall tasks (team members)"><?php echo $proj->$overall_col ?? 0; ?></span>
+                                                    <br>
+                                                    <span class="badge-num" style="background:<?php echo $ts->color ?: '#2563eb'; ?>;" title="Active in date range"><?php echo $proj->$col ?? 0; ?></span>
+                                                </td>
                                             <?php endforeach; ?>
                                         </tr>
                                     <?php endforeach; ?>
@@ -624,9 +636,11 @@
                                     <tfoot>
                                         <tr class="total-row">
                                             <td colspan="2" style="text-align:right;">🏁 Team Total:</td>
-                                            <td><?php echo $team['total_tasks']; ?></td>
-                                            <?php foreach ($team_task_statuses as $ts): ?>
-                                                <td><?php echo $team['status_totals'][$ts->id] ?? 0; ?></td>
+                                            <td><?php echo $team['overall_tasks']; ?> / <?php echo $team['total_tasks']; ?></td>
+                                            <?php foreach ($team_task_statuses as $ts):
+                                                $bg = $ts->color ?: '#2563eb';
+                                            ?>
+                                                <td><?php echo ($team['overall_status_totals'][$ts->id] ?? 0); ?> / <?php echo ($team['status_totals'][$ts->id] ?? 0); ?></td>
                                             <?php endforeach; ?>
                                         </tr>
                                     </tfoot>
