@@ -339,7 +339,7 @@ class Custom_reports extends Security_Controller
         $tw_status_columns = "";
         $tw_overall_status_columns = "";
         foreach ($task_statuses as $ts) {
-            $tw_status_columns .= ", SUM(CASE WHEN t.status_id = {$ts->id} THEN 1 ELSE 0 END) AS status_{$ts->id}_count";
+            $tw_status_columns .= ", COUNT(DISTINCT CASE WHEN t.status_id = {$ts->id} THEN t.id ELSE NULL END) AS status_{$ts->id}_count";
             // overall_status built as subquery placeholder — will be filled per-team inside loop
         }
 
@@ -474,5 +474,87 @@ class Custom_reports extends Security_Controller
         $view_data['team_report_date_label'] = $start_date . ' to ' . $end_date;
 
         return $this->template->rander("custom_reports/index", $view_data);
+    }
+
+    public function team_wise_tasks_modal()
+    {
+        $team_id    = $this->request->getPost('team_id');
+        $project_id = $this->request->getPost('project_id');
+        $status_id  = $this->request->getPost('status_id');
+        $start_date = $this->request->getPost('start_date');
+        $end_date   = $this->request->getPost('end_date');
+        $type       = $this->request->getPost('type'); // 'overall' or 'active'
+        
+        $team = $this->Team_model->get_one($team_id);
+        if (!$team) {
+            show_404();
+        }
+        
+        $member_ids_raw = array_filter(array_map('trim', explode(',', $team->members)));
+        $member_ids     = array_filter($member_ids_raw, 'is_numeric');
+        if (empty($member_ids)) {
+            $view_data['tasks'] = [];
+            return $this->template->view("custom_reports/team_wise_tasks_modal", $view_data);
+        }
+        $member_ids_str = implode(',', $member_ids);
+
+        // Fetch tasks
+        $tasks_table         = $this->db->prefixTable('tasks');
+        $projects_table      = $this->db->prefixTable('projects');
+        $project_members     = $this->db->prefixTable('project_members');
+        $task_status_table   = $this->db->prefixTable('task_status');
+        $activity_logs_table = $this->db->prefixTable('activity_logs');
+        $users_table         = $this->db->prefixTable('users');
+
+        $where = " AND $tasks_table.deleted=0 ";
+
+        if ($project_id) {
+            $where .= " AND $tasks_table.project_id=" . (int)$project_id;
+        } else {
+            // Team total: all projects that have team members
+            $where .= " AND $tasks_table.project_id IN (SELECT project_id FROM $project_members WHERE deleted=0 AND user_id IN ($member_ids_str))";
+        }
+
+        $where .= " AND $tasks_table.assigned_to IN ($member_ids_str) ";
+
+        if ($status_id) {
+            $where .= " AND $tasks_table.status_id=" . (int)$status_id;
+        }
+
+        if ($type === 'active' && $start_date && $end_date) {
+            $where .= " AND (
+                ($tasks_table.created_date BETWEEN '$start_date' AND '$end_date')
+                OR ($tasks_table.status_changed_at IS NOT NULL AND DATE($tasks_table.status_changed_at) BETWEEN '$start_date' AND '$end_date')
+                OR EXISTS (
+                    SELECT 1 FROM $activity_logs_table al
+                    WHERE al.log_type = 'task'
+                      AND al.log_type_id = $tasks_table.id
+                      AND al.deleted = 0
+                      AND DATE(al.created_at) BETWEEN '$start_date' AND '$end_date'
+                )
+            )";
+        }
+
+        $sql = "
+            SELECT 
+                $tasks_table.id, 
+                $tasks_table.title, 
+                $projects_table.title AS project_title, 
+                $task_status_table.title AS status_title, 
+                $task_status_table.color AS status_color, 
+                CONCAT($users_table.first_name, ' ', $users_table.last_name) AS assigned_to_user,
+                $users_table.image AS assigned_to_avatar
+            FROM $tasks_table
+            LEFT JOIN $projects_table ON $projects_table.id = $tasks_table.project_id
+            LEFT JOIN $task_status_table ON $task_status_table.id = $tasks_table.status_id
+            LEFT JOIN $users_table ON $users_table.id = $tasks_table.assigned_to
+            WHERE 1=1 $where
+            ORDER BY $tasks_table.id DESC
+        ";
+
+        $view_data['tasks'] = $this->db->query($sql)->getResult();
+        $view_data['modal_title'] = app_lang('tasks') . " (" . ucfirst($type) . ")";
+        
+        return $this->template->view("custom_reports/team_wise_tasks_modal", $view_data);
     }
 }

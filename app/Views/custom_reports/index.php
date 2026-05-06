@@ -616,17 +616,17 @@
                                             <td><?php echo $pSlNo++; ?></td>
                                             <td class="member-name-cell"><?php echo htmlspecialchars($proj->project_name); ?></td>
                                             <td class="text-center">
-                                                <span class="badge-num" title="Overall tasks in project (team members)"><?php echo $proj->overall_tasks; ?></span>
+                                                <span class="badge-num" style="cursor:pointer;" data-act="ajax-modal" data-action-url="<?php echo get_uri('custom_reports/team_wise_tasks_modal'); ?>" data-post-team_id="<?php echo $team['team_id']; ?>" data-post-project_id="<?php echo $proj->project_id; ?>" data-post-status_id="" data-post-start_date="<?php echo $start_date; ?>" data-post-end_date="<?php echo $end_date; ?>" data-post-type="overall" title="Overall tasks in project (team members)"><?php echo $proj->overall_tasks; ?></span>
                                                 <br>
-                                                <span class="badge-num" style="background:#0ea5e9;" title="Active in date range"><?php echo $proj->total_tasks; ?></span>
+                                                <span class="badge-num" style="cursor:pointer; background:#0ea5e9;" data-act="ajax-modal" data-action-url="<?php echo get_uri('custom_reports/team_wise_tasks_modal'); ?>" data-post-team_id="<?php echo $team['team_id']; ?>" data-post-project_id="<?php echo $proj->project_id; ?>" data-post-status_id="" data-post-start_date="<?php echo $start_date; ?>" data-post-end_date="<?php echo $end_date; ?>" data-post-type="active" title="Active in date range"><?php echo $proj->total_tasks; ?></span>
                                             </td>
                                             <?php foreach ($team_task_statuses as $ts):
                                                 $col = "status_{$ts->id}_count";
                                                 $overall_col = "overall_status_{$ts->id}_count"; ?>
                                                 <td class="text-center">
-                                                    <span class="badge-num" title="Overall tasks (team members)"><?php echo $proj->$overall_col ?? 0; ?></span>
+                                                    <span class="badge-num" style="cursor:pointer;" data-act="ajax-modal" data-action-url="<?php echo get_uri('custom_reports/team_wise_tasks_modal'); ?>" data-post-team_id="<?php echo $team['team_id']; ?>" data-post-project_id="<?php echo $proj->project_id; ?>" data-post-status_id="<?php echo $ts->id; ?>" data-post-start_date="<?php echo $start_date; ?>" data-post-end_date="<?php echo $end_date; ?>" data-post-type="overall" title="Overall tasks (team members)"><?php echo $proj->$overall_col ?? 0; ?></span>
                                                     <br>
-                                                    <span class="badge-num" style="background:<?php echo $ts->color ?: '#2563eb'; ?>;" title="Active in date range"><?php echo $proj->$col ?? 0; ?></span>
+                                                    <span class="badge-num" style="cursor:pointer; background:<?php echo $ts->color ?: '#2563eb'; ?>;" data-act="ajax-modal" data-action-url="<?php echo get_uri('custom_reports/team_wise_tasks_modal'); ?>" data-post-team_id="<?php echo $team['team_id']; ?>" data-post-project_id="<?php echo $proj->project_id; ?>" data-post-status_id="<?php echo $ts->id; ?>" data-post-start_date="<?php echo $start_date; ?>" data-post-end_date="<?php echo $end_date; ?>" data-post-type="active" title="Active in date range"><?php echo $proj->$col ?? 0; ?></span>
                                                 </td>
                                             <?php endforeach; ?>
                                         </tr>
@@ -636,11 +636,17 @@
                                     <tfoot>
                                         <tr class="total-row">
                                             <td colspan="2" style="text-align:right;">🏁 Team Total:</td>
-                                            <td><?php echo $team['overall_tasks']; ?> / <?php echo $team['total_tasks']; ?></td>
+                                            <td>
+                                                <span style="cursor:pointer; color:#1e3a8a; text-decoration:underline;" data-act="ajax-modal" data-action-url="<?php echo get_uri('custom_reports/team_wise_tasks_modal'); ?>" data-post-team_id="<?php echo $team['team_id']; ?>" data-post-project_id="" data-post-status_id="" data-post-start_date="<?php echo $start_date; ?>" data-post-end_date="<?php echo $end_date; ?>" data-post-type="overall"><?php echo $team['overall_tasks']; ?></span> / 
+                                                <span style="cursor:pointer; color:#1e3a8a; text-decoration:underline;" data-act="ajax-modal" data-action-url="<?php echo get_uri('custom_reports/team_wise_tasks_modal'); ?>" data-post-team_id="<?php echo $team['team_id']; ?>" data-post-project_id="" data-post-status_id="" data-post-start_date="<?php echo $start_date; ?>" data-post-end_date="<?php echo $end_date; ?>" data-post-type="active"><?php echo $team['total_tasks']; ?></span>
+                                            </td>
                                             <?php foreach ($team_task_statuses as $ts):
                                                 $bg = $ts->color ?: '#2563eb';
                                             ?>
-                                                <td><?php echo ($team['overall_status_totals'][$ts->id] ?? 0); ?> / <?php echo ($team['status_totals'][$ts->id] ?? 0); ?></td>
+                                                <td>
+                                                    <span style="cursor:pointer; color:#1e3a8a; text-decoration:underline;" data-act="ajax-modal" data-action-url="<?php echo get_uri('custom_reports/team_wise_tasks_modal'); ?>" data-post-team_id="<?php echo $team['team_id']; ?>" data-post-project_id="" data-post-status_id="<?php echo $ts->id; ?>" data-post-start_date="<?php echo $start_date; ?>" data-post-end_date="<?php echo $end_date; ?>" data-post-type="overall"><?php echo ($team['overall_status_totals'][$ts->id] ?? 0); ?></span> / 
+                                                    <span style="cursor:pointer; color:#1e3a8a; text-decoration:underline;" data-act="ajax-modal" data-action-url="<?php echo get_uri('custom_reports/team_wise_tasks_modal'); ?>" data-post-team_id="<?php echo $team['team_id']; ?>" data-post-project_id="" data-post-status_id="<?php echo $ts->id; ?>" data-post-start_date="<?php echo $start_date; ?>" data-post-end_date="<?php echo $end_date; ?>" data-post-type="active"><?php echo ($team['status_totals'][$ts->id] ?? 0); ?></span>
+                                                </td>
                                             <?php endforeach; ?>
                                         </tr>
                                     </tfoot>
