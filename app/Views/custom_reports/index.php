@@ -665,7 +665,7 @@
                 <div role="tabpanel" class="tab-pane fade" id="effort-report">
                     <style>
                         .effort-table-wrap { overflow-x: auto; }
-                        .effort-table-wrap { overflow-x: auto; position: relative; cursor: grab; user-select: none; }
+                        .effort-table-wrap { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 200px); position: relative; cursor: grab; user-select: none; }
                         .effort-table {
                             border-collapse: separate;
                             border-spacing: 0;
@@ -690,7 +690,11 @@
                         .effort-table .member-col   { background:#f0f4ff; }
                         /* Sticky column styles */
                         .effort-table .sc { position: sticky; z-index: 2; }
-                        .effort-table thead .sc { z-index: 3; }
+                        /* Sticky header rows (Y-axis) - sticks within the scrollable wrap */
+                        .effort-table thead tr:nth-child(1) th { position: sticky; top: 0;    z-index: 4; }
+                        .effort-table thead tr:nth-child(2) th { position: sticky; top: 34px; z-index: 4; }
+                        /* Corner cells: both X and Y sticky — highest z-index */
+                        .effort-table thead .sc { z-index: 6; }
                         .effort-table .sc-1  { left: 0;     min-width: 32px;  background: #1e3a8a; }
                         .effort-table .sc-2  { left: 32px;  min-width: 170px; background: #1e3a8a; text-align: left; white-space: normal; word-break: break-word; }
                         .effort-table .sc-3  { left: 202px; min-width: 44px;  background: #1e3a8a; }
@@ -919,4 +923,7 @@
             if (!wasSelected) tr.classList.add('row-selected');
         });
     })();
+
+    // Drag-to-scroll on effort table (already handles both X drag and row click)
+    // Navbar offset no longer needed - table scrolls internally within max-height wrap
 </script>
