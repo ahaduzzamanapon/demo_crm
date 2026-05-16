@@ -657,7 +657,7 @@ class Custom_reports extends Security_Controller
 
         $tasks = $this->db->query($sql)->getResult();
         $view_data['tasks']       = $tasks;
-        $view_data['modal_title'] = app_lang('tasks') . " (" . ucfirst($type) . ") — " . count($tasks) . " task(s)";
+        $view_data['modal_title'] = "🏁 " . htmlspecialchars($team->title) . " — Tasks (" . ucfirst($type) . ") — " . count($tasks) . " task(s)";
 
         return $this->template->view("custom_reports/team_wise_tasks_modal", $view_data);
     }
