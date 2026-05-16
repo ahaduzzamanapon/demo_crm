@@ -596,8 +596,6 @@ class Custom_reports extends Security_Controller
             return $this->template->view("custom_reports/team_wise_tasks_modal", $view_data);
         }
         $member_ids_str = implode(',', $member_ids);
-
-        // Fetch tasks
         $tasks_table         = $this->db->prefixTable('tasks');
         $projects_table      = $this->db->prefixTable('projects');
         $project_members     = $this->db->prefixTable('project_members');
@@ -605,21 +603,27 @@ class Custom_reports extends Security_Controller
         $activity_logs_table = $this->db->prefixTable('activity_logs');
         $users_table         = $this->db->prefixTable('users');
 
-        $where = " AND $tasks_table.deleted=0 ";
-
-        if ($project_id) {
-            $where .= " AND $tasks_table.project_id=" . (int)$project_id;
-        } else {
-            // Team total: all projects that have team members
-            $where .= " AND $tasks_table.project_id IN (SELECT project_id FROM $project_members WHERE deleted=0 AND user_id IN ($member_ids_str))";
-        }
-
+        $where = " AND $tasks_table.deleted = 0 ";
         $where .= " AND $tasks_table.assigned_to IN ($member_ids_str) ";
 
-        if ($status_id) {
-            $where .= " AND $tasks_table.status_id=" . (int)$status_id;
+        if ($project_id) {
+            // Project-level: exact match
+            $where .= " AND $tasks_table.project_id = " . (int)$project_id;
+        } else {
+            // Team total: only non-deleted projects where a team member is a project member
+            $where .= " AND $tasks_table.project_id IN (
+                SELECT DISTINCT pm.project_id
+                FROM $project_members pm
+                INNER JOIN $projects_table p ON p.id = pm.project_id AND p.deleted = 0
+                WHERE pm.deleted = 0 AND pm.user_id IN ($member_ids_str)
+            )";
         }
 
+        if ($status_id) {
+            $where .= " AND $tasks_table.status_id = " . (int)$status_id;
+        }
+
+        // Date filter for "active" type — same condition as the main count query
         if ($type === 'active' && $start_date && $end_date) {
             $where .= " AND (
                 ($tasks_table.created_date BETWEEN '$start_date' AND '$end_date')
@@ -635,25 +639,26 @@ class Custom_reports extends Security_Controller
         }
 
         $sql = "
-            SELECT 
-                $tasks_table.id, 
-                $tasks_table.title, 
-                $projects_table.title AS project_title, 
-                $task_status_table.title AS status_title, 
-                $task_status_table.color AS status_color, 
+            SELECT
+                $tasks_table.id,
+                $tasks_table.title,
+                $projects_table.title AS project_title,
+                $task_status_table.title AS status_title,
+                $task_status_table.color AS status_color,
                 CONCAT($users_table.first_name, ' ', $users_table.last_name) AS assigned_to_user,
                 $users_table.image AS assigned_to_avatar
             FROM $tasks_table
-            LEFT JOIN $projects_table ON $projects_table.id = $tasks_table.project_id
+            LEFT JOIN $projects_table   ON $projects_table.id   = $tasks_table.project_id
             LEFT JOIN $task_status_table ON $task_status_table.id = $tasks_table.status_id
-            LEFT JOIN $users_table ON $users_table.id = $tasks_table.assigned_to
+            LEFT JOIN $users_table      ON $users_table.id      = $tasks_table.assigned_to
             WHERE 1=1 $where
             ORDER BY $tasks_table.id DESC
         ";
 
-        $view_data['tasks'] = $this->db->query($sql)->getResult();
-        $view_data['modal_title'] = app_lang('tasks') . " (" . ucfirst($type) . ")";
-        
+        $tasks = $this->db->query($sql)->getResult();
+        $view_data['tasks']       = $tasks;
+        $view_data['modal_title'] = app_lang('tasks') . " (" . ucfirst($type) . ") — " . count($tasks) . " task(s)";
+
         return $this->template->view("custom_reports/team_wise_tasks_modal", $view_data);
     }
 }
