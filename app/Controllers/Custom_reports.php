@@ -638,19 +638,46 @@ class Custom_reports extends Security_Controller
             )";
         }
 
+        $pt = $this->db->prefixTable('project_time');
+
         $sql = "
             SELECT
                 $tasks_table.id,
                 $tasks_table.title,
+                $tasks_table.deadline,
+                $tasks_table.estimated_time,
                 $projects_table.title AS project_title,
                 $task_status_table.title AS status_title,
                 $task_status_table.color AS status_color,
                 CONCAT($users_table.first_name, ' ', $users_table.last_name) AS assigned_to_user,
-                $users_table.image AS assigned_to_avatar
+                $users_table.image AS assigned_to_avatar,
+                (
+                    SELECT GROUP_CONCAT(
+                        u2.first_name, ' ', u2.last_name,
+                        '::',
+                        IFNULL(u2.image, '')
+                        ORDER BY u2.first_name
+                        SEPARATOR '||'
+                    )
+                    FROM $users_table u2
+                    WHERE u2.deleted = 0
+                      AND FIND_IN_SET(u2.id, $tasks_table.collaborators)
+                ) AS collaborator_list,
+                (
+                    SELECT ROUND((
+                        COALESCE(SUM(IF($pt.end_time IS NOT NULL,
+                            TIME_TO_SEC(TIMEDIFF($pt.end_time, $pt.start_time)), 0)), 0)
+                        + COALESCE(SUM($pt.hours * 3600), 0)
+                    ) / 3600, 2)
+                    FROM $pt
+                    WHERE $pt.task_id = $tasks_table.id
+                      AND $pt.deleted = 0
+                      AND $pt.status = 'logged'
+                ) AS logged_hours
             FROM $tasks_table
-            LEFT JOIN $projects_table   ON $projects_table.id   = $tasks_table.project_id
-            LEFT JOIN $task_status_table ON $task_status_table.id = $tasks_table.status_id
-            LEFT JOIN $users_table      ON $users_table.id      = $tasks_table.assigned_to
+            LEFT JOIN $projects_table    ON $projects_table.id    = $tasks_table.project_id
+            LEFT JOIN $task_status_table ON $task_status_table.id  = $tasks_table.status_id
+            LEFT JOIN $users_table       ON $users_table.id        = $tasks_table.assigned_to
             WHERE 1=1 $where
             ORDER BY $tasks_table.id DESC
         ";
