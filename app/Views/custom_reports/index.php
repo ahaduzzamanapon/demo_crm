@@ -693,8 +693,11 @@
                         /* Sticky header rows (Y-axis) - sticks within the scrollable wrap */
                         .effort-table thead tr:nth-child(1) th { position: sticky; top: 0;    z-index: 4; }
                         .effort-table thead tr:nth-child(2) th { position: sticky; top: 34px; z-index: 4; }
-                        /* Corner cells: both X and Y sticky — highest z-index */
-                        .effort-table thead .sc { z-index: 6; }
+                        /* Non-sticky member name headers stay below fixed columns */
+                        .effort-table thead tr:nth-child(1) th:not(.sc) { z-index: 1; }
+                        .effort-table thead tr:nth-child(2) th:not(.sc) { z-index: 1; }
+                        /* Corner cells: both X and Y sticky — must be above member name headers */
+                        .effort-table thead .sc { z-index: 100; }
                         .effort-table .sc-1  { left: 0;     min-width: 32px;  background: #1e3a8a; }
                         .effort-table .sc-2  { left: 32px;  min-width: 170px; background: #1e3a8a; text-align: left; white-space: normal; word-break: break-word; }
                         .effort-table .sc-3  { left: 202px; min-width: 44px;  background: #1e3a8a; }
