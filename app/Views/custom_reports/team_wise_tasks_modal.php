@@ -1,16 +1,37 @@
 <script>
 /* Widen this modal to xl on load */
-document.addEventListener('DOMContentLoaded', function () {
-    var dlg = document.querySelector('#ajaxModal .modal-dialog');
-    if (dlg) { dlg.classList.add('modal-xl'); }
-});
 (function () {
     var dlg = document.querySelector('#ajaxModal .modal-dialog');
     if (dlg) { dlg.classList.add('modal-xl'); }
+
+    /* Build second modal on body (not inside #ajaxModal) so Bootstrap stacks it correctly */
+    if (!document.getElementById('projectEffortModal')) {
+        var m = document.createElement('div');
+        m.id = 'projectEffortModal';
+        m.className = 'modal fade';
+        m.setAttribute('tabindex', '-1');
+        m.style.zIndex = '1080';
+        m.style.overflowY = 'auto'; /* fix: body has overflow:hidden from first modal */
+        m.innerHTML = '<div class="modal-dialog modal-xl" style="margin-top:40px;">'
+            + '<div class="modal-content" style="max-height:85vh;overflow-y:auto;"><div id="projectEffortModalBody">'
+            + '<div class="modal-body text-center p-5">'
+            + '<div class="spinner-border text-primary" role="status"></div></div>'
+            + '</div></div></div>';
+        document.body.appendChild(m);
+
+        m.addEventListener('hidden.bs.modal', function () {
+            /* restore #ajaxModal backdrop z-index after second modal closes */
+            var bd = document.querySelector('.modal-backdrop');
+            if (bd) bd.style.zIndex = '';
+        });
+    }
 })();
 </script>
+
 <div class="modal-header">
-    <h5 class="modal-title" id="ajaxModalTitle"><i data-feather="list" class="icon-16"></i> <?php echo $modal_title; ?></h5>
+    <h5 class="modal-title" id="ajaxModalTitle">
+        <i data-feather="list" class="icon-16"></i> <?php echo $modal_title; ?>
+    </h5>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 <div class="modal-body clearfix">
@@ -20,11 +41,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 <tr>
                     <th style="min-width:40px;"><?php echo app_lang('id'); ?></th>
                     <th style="min-width:180px;"><?php echo app_lang('title'); ?></th>
-                    <th style="min-width:120px;"><?php echo app_lang('project'); ?></th>
+                    <th style="min-width:140px;"><?php echo app_lang('project'); ?></th>
                     <th style="min-width:160px;"><?php echo app_lang('assigned_to'); ?></th>
                     <th class="text-center" style="min-width:80px;">Estimated<br><small style="font-weight:400;opacity:.75;">(hrs)</small></th>
                     <th class="text-center" style="min-width:80px;">Logged<br><small style="font-weight:400;opacity:.75;">(hrs)</small></th>
-                    <th class="text-center" style="min-width:90px;">Due Date</th>
+                    <th class="text-center" style="min-width:90px;">Deadline</th>
                     <th class="text-center" style="min-width:90px;"><?php echo app_lang('status'); ?></th>
                 </tr>
             </thead>
@@ -37,7 +58,18 @@ document.addEventListener('DOMContentLoaded', function () {
                             <?php echo htmlspecialchars($task->title); ?>
                         </a>
                     </td>
-                    <td><?php echo htmlspecialchars($task->project_title); ?></td>
+                    <td>
+                        <a href="#"
+                           class="project-effort-link text-decoration-none fw-semibold"
+                           data-project-id="<?php echo $task->project_id ?? ''; ?>"
+                           data-project-title="<?php echo htmlspecialchars($task->project_title); ?>"
+                           data-start-date="<?php echo $start_date; ?>"
+                           data-end-date="<?php echo $end_date; ?>"
+                           title="View effort for this project">
+                            <?php echo htmlspecialchars($task->project_title); ?>
+                            <i data-feather="bar-chart-2" style="width:12px;height:12px;vertical-align:middle;margin-left:3px;"></i>
+                        </a>
+                    </td>
                     <td>
                         <div class="d-flex align-items-center gap-1">
                             <span class="avatar avatar-xs">
@@ -72,8 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <?php
                         $logged = (float)($task->logged_hours ?? 0);
                         $est    = (float)($task->estimated_time ?? 0);
-                        $color  = '';
-                        if ($est > 0 && $logged > $est) $color = 'color:#dc2626;font-weight:600;'; // over estimate
+                        $color  = ($est > 0 && $logged > $est) ? 'color:#dc2626;font-weight:600;' : '';
                         echo $logged > 0 ? "<span style='$color'>" . number_format($logged, 2) . "</span>" : '-';
                         ?>
                     </td>
@@ -95,5 +126,60 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
 </div>
 <div class="modal-footer">
-    <button type="button" class="btn btn-default" data-bs-dismiss="modal"><span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?></button>
+    <button type="button" class="btn btn-default" data-bs-dismiss="modal">
+        <span data-feather="x" class="icon-16"></span> <?php echo app_lang('close'); ?>
+    </button>
 </div>
+
+<script>
+(function () {
+    var modalEl = document.getElementById('projectEffortModal');
+    if (!modalEl) return;
+
+    /* When second modal opens, push its backdrop above the first modal dialog */
+    modalEl.addEventListener('shown.bs.modal', function () {
+        var backdrops = document.querySelectorAll('.modal-backdrop');
+        if (backdrops.length >= 2) {
+            backdrops[backdrops.length - 1].style.zIndex = '1075';
+        }
+    });
+
+    /* Project effort link click */
+    document.querySelectorAll('.project-effort-link').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            var projectId = this.dataset.projectId;
+            var startDate = this.dataset.startDate;
+            var endDate   = this.dataset.endDate;
+            var bodyEl    = document.getElementById('projectEffortModalBody');
+
+            /* Reset to spinner */
+            bodyEl.innerHTML = '<div class="modal-body text-center p-5"><div class="spinner-border text-primary" role="status"></div></div>';
+
+            /* Show second modal */
+            var modal2 = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, keyboard: true });
+            modal2.show();
+
+            /* AJAX POST */
+            var fd = new FormData();
+            fd.append('project_id', projectId);
+            fd.append('start_date', startDate);
+            fd.append('end_date',   endDate);
+
+            fetch('<?php echo get_uri('custom_reports/project_effort_quick_modal'); ?>', {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                bodyEl.innerHTML = html;
+                if (typeof feather !== 'undefined') feather.replace();
+            })
+            .catch(function () {
+                bodyEl.innerHTML = '<div class="modal-body text-danger p-4">Failed to load project effort data.</div>';
+            });
+        });
+    });
+})();
+</script>

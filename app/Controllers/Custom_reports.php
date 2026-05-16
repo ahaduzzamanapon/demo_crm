@@ -643,6 +643,7 @@ class Custom_reports extends Security_Controller
         $sql = "
             SELECT
                 $tasks_table.id,
+                $tasks_table.project_id,
                 $tasks_table.title,
                 $tasks_table.deadline,
                 $tasks_table.estimated_time,
@@ -684,8 +685,123 @@ class Custom_reports extends Security_Controller
 
         $tasks = $this->db->query($sql)->getResult();
         $view_data['tasks']       = $tasks;
+        $view_data['start_date']  = $start_date;
+        $view_data['end_date']    = $end_date;
         $view_data['modal_title'] = "🏁 " . htmlspecialchars($team->title) . " — Tasks (" . ucfirst($type) . ") — " . count($tasks) . " task(s)";
 
         return $this->template->view("custom_reports/team_wise_tasks_modal", $view_data);
+    }
+
+    public function project_effort_quick_modal()
+    {
+        $project_id = (int)$this->request->getPost('project_id');
+        $start_date = $this->request->getPost('start_date');
+        $end_date   = $this->request->getPost('end_date');
+
+        $pt  = $this->db->prefixTable('project_time');
+        $prj = $this->db->prefixTable('projects');
+        $usr = $this->db->prefixTable('users');
+        $tsk = $this->db->prefixTable('tasks');
+
+        $project = $this->db->query("SELECT id, title, project_type FROM $prj WHERE id = $project_id")->getRow();
+
+        // Active staff who logged time on this project
+        $effort_staff = $this->db->query("
+            SELECT DISTINCT u.id, u.first_name, u.last_name, u.image
+            FROM $usr u
+            INNER JOIN $pt ON $pt.user_id = u.id
+            WHERE $pt.project_id = $project_id AND $pt.deleted = 0 AND $pt.status = 'logged'
+              AND u.deleted = 0
+            ORDER BY u.first_name
+        ")->getResult();
+
+        // Effort summary row for this project
+        $sql_effort = "
+            SELECT
+                p.id AS project_id,
+                p.title AS project_name,
+                p.project_type,
+                COALESCE((SELECT SUM(t.estimated_time) FROM $tsk t
+                           WHERE t.project_id = p.id AND t.deleted = 0), 0) AS estimated_hours,
+                COALESCE((
+                    SELECT (COALESCE(SUM(IF(pt2.end_time IS NOT NULL,
+                                TIME_TO_SEC(TIMEDIFF(pt2.end_time, pt2.start_time)), 0)), 0)
+                            + COALESCE(SUM(pt2.hours * 3600), 0)) / 3600
+                    FROM $pt pt2
+                    WHERE pt2.project_id = p.id AND pt2.deleted = 0 AND pt2.status = 'logged'
+                      AND DATE(pt2.start_time) < '$start_date'
+                ), 0) AS preceding_hours,
+                COALESCE((
+                    SELECT (COALESCE(SUM(IF(pt2.end_time IS NOT NULL,
+                                TIME_TO_SEC(TIMEDIFF(pt2.end_time, pt2.start_time)), 0)), 0)
+                            + COALESCE(SUM(pt2.hours * 3600), 0)) / 3600
+                    FROM $pt pt2
+                    WHERE pt2.project_id = p.id AND pt2.deleted = 0 AND pt2.status = 'logged'
+                      AND DATE(pt2.start_time) BETWEEN '$start_date' AND '$end_date'
+                ), 0) AS current_hours
+            FROM $prj p
+            WHERE p.id = $project_id AND p.deleted = 0
+        ";
+        $effort_row = $this->db->query($sql_effort)->getRow();
+
+        // Per-member current-period hours
+        $member_hours = [];
+        if (!empty($effort_staff)) {
+            $staff_ids = implode(',', array_column($effort_staff, 'id') ?: [0]);
+            $sql_mh = "
+                SELECT user_id,
+                    (COALESCE(SUM(IF(end_time IS NOT NULL, TIME_TO_SEC(TIMEDIFF(end_time, start_time)), 0)), 0)
+                     + COALESCE(SUM(hours * 3600), 0)) / 3600 AS hours
+                FROM $pt
+                WHERE deleted = 0 AND status = 'logged'
+                  AND project_id = $project_id
+                  AND user_id IN ($staff_ids)
+                  AND DATE(start_time) BETWEEN '$start_date' AND '$end_date'
+                GROUP BY user_id
+            ";
+            foreach ($this->db->query($sql_mh)->getResult() as $row) {
+                $member_hours[$row->user_id] = (float)$row->hours;
+            }
+        }
+
+        // Task list
+        $sql_tasks = "
+            SELECT
+                $tsk.id, $tsk.title, $tsk.estimated_time, $tsk.deadline,
+                ts.title AS status_title, ts.color AS status_color,
+                CONCAT($usr.first_name, ' ', $usr.last_name) AS assigned_to,
+                (
+                    SELECT ROUND((
+                        COALESCE(SUM(IF(pt2.end_time IS NOT NULL,
+                            TIME_TO_SEC(TIMEDIFF(pt2.end_time, pt2.start_time)), 0)), 0)
+                        + COALESCE(SUM(pt2.hours * 3600), 0)
+                    ) / 3600, 2)
+                    FROM $pt pt2
+                    WHERE pt2.task_id = $tsk.id AND pt2.deleted = 0 AND pt2.status = 'logged'
+                ) AS logged_hours,
+                (
+                    SELECT GROUP_CONCAT(
+                        u2.first_name, ' ', u2.last_name, '::', IFNULL(u2.image, '')
+                        ORDER BY u2.first_name SEPARATOR '||'
+                    )
+                    FROM $usr u2
+                    WHERE u2.deleted = 0 AND FIND_IN_SET(u2.id, $tsk.collaborators)
+                ) AS collaborator_list
+            FROM $tsk
+            LEFT JOIN {$this->db->prefixTable('task_status')} ts ON ts.id = $tsk.status_id
+            LEFT JOIN $usr ON $usr.id = $tsk.assigned_to
+            WHERE $tsk.project_id = $project_id AND $tsk.deleted = 0
+            ORDER BY $tsk.id DESC
+        ";
+
+        $view_data['project']       = $project;
+        $view_data['effort_row']    = $effort_row;
+        $view_data['effort_staff']  = $effort_staff;
+        $view_data['member_hours']  = $member_hours;
+        $view_data['tasks']         = $this->db->query($sql_tasks)->getResult();
+        $view_data['start_date']    = $start_date;
+        $view_data['end_date']      = $end_date;
+
+        return $this->template->view("custom_reports/project_effort_quick_modal", $view_data);
     }
 }
