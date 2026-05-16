@@ -77,6 +77,7 @@
                 <th>ID</th>
                 <th>Title</th>
                 <th>Assigned To</th>
+                    <th>Collaborators</th>
                 <th class="text-center">Est. (hrs)</th>
                 <th class="text-center">Logged (hrs)</th>
                 <th class="text-center">Deadline</th>
@@ -85,7 +86,7 @@
         </thead>
         <tbody>
         <?php if (empty($tasks)): ?>
-            <tr><td colspan="7" class="text-center text-muted py-3">No tasks found.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-3">No tasks found.</td></tr>
         <?php endif; ?>
         <?php foreach ($tasks as $t):
             $logged = (float)($t->logged_hours ?? 0);
@@ -102,6 +103,20 @@
                 </a>
             </td>
             <td><?php echo htmlspecialchars($t->assigned_to ?? '—'); ?></td>
+            <td style="font-size:11px;">
+                <?php if (!empty($t->collaborator_list)):
+                    $collabs = explode('||', $t->collaborator_list);
+                    foreach ($collabs as $collab):
+                        $parts = explode('::', $collab);
+                        $cName = $parts[0] ?? '';
+                        $cImg  = $parts[1] ?? '';
+                ?>
+                <span class="d-inline-flex align-items-center gap-1 me-1">
+                    <img src="<?php echo get_avatar($cImg); ?>" style="width:16px;height:16px;border-radius:50%;" />
+                    <span><?php echo htmlspecialchars($cName); ?></span>
+                </span>
+                <?php endforeach; else: echo '<span class="text-muted">—</span>'; endif; ?>
+            </td>
             <td class="text-center"><?php echo $est > 0 ? number_format($est, 2) : '—'; ?></td>
             <td class="text-center">
                 <?php if ($logged > 0): ?>
