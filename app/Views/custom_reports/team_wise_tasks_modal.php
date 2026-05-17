@@ -54,7 +54,10 @@
                 <tr>
                     <td><?php echo $task->id; ?></td>
                     <td>
-                        <a href="#" data-action-url="<?php echo get_uri("tasks/view"); ?>" data-post-id="<?php echo $task->id; ?>" data-act="ajax-modal" data-title="<?php echo app_lang('task_info'); ?>" data-bs-dismiss="modal">
+                        <a href="#"
+                           class="task-view-link"
+                           data-action-url="<?php echo get_uri('tasks/view'); ?>"
+                           data-post-id="<?php echo $task->id; ?>">
                             <?php echo htmlspecialchars($task->title); ?>
                         </a>
                     </td>
@@ -142,6 +145,45 @@
         if (backdrops.length >= 2) {
             backdrops[backdrops.length - 1].style.zIndex = '1075';
         }
+    });
+
+    /* Task title click — wait for #ajaxModal to fully hide before re-opening */
+    document.querySelectorAll('.task-view-link').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopImmediatePropagation(); /* prevent CRM's data-act delegation */
+            var url    = this.getAttribute('data-action-url');
+            var taskId = this.getAttribute('data-post-id');
+            var ajaxEl = document.getElementById('ajaxModal');
+
+            function loadTask() {
+                $('#ajaxModalContent').html($('#ajaxModalOriginalContent').html());
+                $('#ajaxModalContent .original-modal-body')
+                    .removeClass('original-modal-body').addClass('modal-body');
+                $('#ajaxModal').modal('show');
+                $.ajax({
+                    url: url,
+                    data: { ajaxModal: 1, id: taskId },
+                    type: 'POST',
+                    cache: false,
+                    success: function (html) {
+                        $('#ajaxModalContent').html(html);
+                        feather.replace();
+                    }
+                });
+            }
+
+            /* If #ajaxModal is visible, hide it first then load */
+            if (ajaxEl.classList.contains('show')) {
+                ajaxEl.addEventListener('hidden.bs.modal', function onHide() {
+                    ajaxEl.removeEventListener('hidden.bs.modal', onHide);
+                    loadTask();
+                });
+                bootstrap.Modal.getInstance(ajaxEl).hide();
+            } else {
+                loadTask();
+            }
+        });
     });
 
     /* Project effort link click */

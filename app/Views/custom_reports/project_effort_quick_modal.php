@@ -96,9 +96,10 @@
         <tr>
             <td><?php echo $t->id; ?></td>
             <td>
-                <a href="#" data-action-url="<?php echo get_uri('tasks/view'); ?>"
-                   data-post-id="<?php echo $t->id; ?>" data-act="ajax-modal"
-                   data-title="<?php echo app_lang('task_info'); ?>" data-bs-dismiss="modal">
+                <a href="#"
+                   class="task-view-link"
+                   data-action-url="<?php echo get_uri('tasks/view'); ?>"
+                   data-post-id="<?php echo $t->id; ?>">
                     <?php echo htmlspecialchars($t->title); ?>
                 </a>
             </td>
@@ -142,3 +143,37 @@
         <span data-feather="x" class="icon-16"></span> Close
     </button>
 </div>
+
+<script>
+(function () {
+    document.querySelectorAll('.task-view-link').forEach(function (link) {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            var url    = this.getAttribute('data-action-url');
+            var taskId = this.getAttribute('data-post-id');
+
+            /* Close the effort modal (second modal) */
+            var effortModalEl = document.getElementById('projectEffortModal');
+            var effortInst    = effortModalEl ? bootstrap.Modal.getInstance(effortModalEl) : null;
+            if (effortInst) effortInst.hide();
+
+            /* Load task into #ajaxModal (still open as first modal) */
+            $('#ajaxModalContent').html($('#ajaxModalOriginalContent').html());
+            $('#ajaxModalContent .original-modal-body')
+                .removeClass('original-modal-body').addClass('modal-body');
+            /* #ajaxModal is already visible — just update content */
+            $.ajax({
+                url: url,
+                data: { ajaxModal: 1, id: taskId },
+                type: 'POST',
+                cache: false,
+                success: function (html) {
+                    $('#ajaxModalContent').html(html);
+                    feather.replace();
+                }
+            });
+        });
+    });
+})();
+</script>
