@@ -75,6 +75,11 @@ class Custom_reports extends Security_Controller
         }
         $view_data['tasks_dropdown'] = $tasks_dropdown;
 
+        $tem = $this->db->prefixTable('team');
+        $view_data['teams_dropdown_list'] = $this->db->query(
+            "SELECT id, title FROM $tem WHERE deleted=0 ORDER BY title"
+        )->getResult();
+
         $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports");
 
         if ($custom_reports_permission === "own") {
@@ -695,8 +700,12 @@ class Custom_reports extends Security_Controller
     public function project_effort_quick_modal()
     {
         $project_id = (int)$this->request->getPost('project_id');
-        $start_date = $this->request->getPost('start_date');
-        $end_date   = $this->request->getPost('end_date');
+        $start_date = $this->request->getPost('start_date') ?: null;
+        $end_date   = $this->request->getPost('end_date')   ?: null;
+
+        /* When called without date context (e.g. from aging report), show all-time */
+        $date_from = $start_date ?: '1970-01-01';
+        $date_to   = $end_date   ?: date('Y-m-d');
 
         $pt  = $this->db->prefixTable('project_time');
         $prj = $this->db->prefixTable('projects');
@@ -729,7 +738,7 @@ class Custom_reports extends Security_Controller
                             + COALESCE(SUM(pt2.hours * 3600), 0)) / 3600
                     FROM $pt pt2
                     WHERE pt2.project_id = p.id AND pt2.deleted = 0 AND pt2.status = 'logged'
-                      AND DATE(pt2.start_time) < '$start_date'
+                      AND DATE(pt2.start_time) < '$date_from'
                 ), 0) AS preceding_hours,
                 COALESCE((
                     SELECT (COALESCE(SUM(IF(pt2.end_time IS NOT NULL,
@@ -737,7 +746,7 @@ class Custom_reports extends Security_Controller
                             + COALESCE(SUM(pt2.hours * 3600), 0)) / 3600
                     FROM $pt pt2
                     WHERE pt2.project_id = p.id AND pt2.deleted = 0 AND pt2.status = 'logged'
-                      AND DATE(pt2.start_time) BETWEEN '$start_date' AND '$end_date'
+                      AND DATE(pt2.start_time) BETWEEN '$date_from' AND '$date_to'
                 ), 0) AS current_hours
             FROM $prj p
             WHERE p.id = $project_id AND p.deleted = 0
@@ -756,7 +765,7 @@ class Custom_reports extends Security_Controller
                 WHERE deleted = 0 AND status = 'logged'
                   AND project_id = $project_id
                   AND user_id IN ($staff_ids)
-                  AND DATE(start_time) BETWEEN '$start_date' AND '$end_date'
+                  AND DATE(start_time) BETWEEN '$date_from' AND '$date_to'
                 GROUP BY user_id
             ";
             foreach ($this->db->query($sql_mh)->getResult() as $row) {
@@ -803,5 +812,123 @@ class Custom_reports extends Security_Controller
         $view_data['end_date']      = $end_date;
 
         return $this->template->view("custom_reports/project_effort_quick_modal", $view_data);
+    }
+
+    public function task_aging_report()
+    {
+        $tsk = $this->db->prefixTable('tasks');
+        $prj = $this->db->prefixTable('projects');
+        $usr = $this->db->prefixTable('users');
+        $tst = $this->db->prefixTable('task_status');
+        $tem = $this->db->prefixTable('team');
+        $pm  = $this->db->prefixTable('project_members');
+
+        $team_id_filter    = $this->request->getGet('aging_team_id');
+        $project_id_filter = $this->request->getGet('aging_project_id');
+
+        /* ── 1. Load teams and build user→team map ── */
+        $team_where = $team_id_filter ? "AND $tem.id=" . (int)$team_id_filter : '';
+        $teams_raw  = $this->db->query(
+            "SELECT id, title, members FROM $tem WHERE deleted=0 $team_where ORDER BY title"
+        )->getResult();
+
+        $user_team_map = []; // user_id → ['id'=>, 'name'=>]
+        foreach ($teams_raw as $t) {
+            $ids = array_filter(array_map('trim', explode(',', $t->members ?? '')), 'is_numeric');
+            foreach ($ids as $uid) {
+                if (!isset($user_team_map[$uid])) {
+                    $user_team_map[$uid] = ['id' => $t->id, 'name' => $t->title];
+                }
+            }
+        }
+
+        /* ── 2. Query tasks ── */
+        $where = "WHERE $tsk.deleted = 0 AND $prj.deleted = 0";
+
+        if (!empty($user_team_map)) {
+            $all_uids = implode(',', array_keys($user_team_map));
+            $where   .= " AND $tsk.assigned_to IN ($all_uids)";
+        } else if ($team_id_filter) {
+            // Team exists but has no members
+            $view_data['aging_tree']           = [];
+            $view_data['aging_teams']          = $teams_raw;
+            $view_data['aging_projects']       = $this->db->query("SELECT id, title FROM $prj WHERE deleted=0 ORDER BY title")->getResult();
+            $view_data['aging_team_filter']    = $team_id_filter;
+            $view_data['aging_project_filter'] = $project_id_filter;
+            return $this->template->view("custom_reports/task_aging_report", $view_data);
+        }
+
+        if ($project_id_filter) {
+            $where .= " AND $tsk.project_id = " . (int)$project_id_filter;
+        }
+
+        $sql = "
+            SELECT
+                $tsk.id        AS task_id,
+                $tsk.title     AS task_title,
+                $tsk.deadline,
+                $tsk.assigned_to,
+                DATEDIFF($tsk.deadline, CURDATE()) AS days_remaining,
+                $prj.id        AS project_id,
+                $prj.title     AS project_name,
+                $tst.title     AS status_title,
+                $tst.color     AS status_color,
+                CONCAT($usr.first_name,' ',$usr.last_name) AS assigned_to_name
+            FROM $tsk
+            LEFT JOIN $prj ON $prj.id = $tsk.project_id
+            LEFT JOIN $tst ON $tst.id = $tsk.status_id
+            LEFT JOIN $usr ON $usr.id = $tsk.assigned_to
+            $where
+            ORDER BY $prj.title, $tsk.deadline
+        ";
+
+        $rows = $this->db->query($sql)->getResult();
+
+        /* ── 3. Build tree: team → project → [tasks] ── */
+        $tree = [];
+        foreach ($rows as $r) {
+            $uid  = $r->assigned_to;
+            $team = $user_team_map[$uid] ?? ['id' => 0, 'name' => 'No Team'];
+            $tid  = $team['id'];
+            $tn   = $team['name'];
+            $pid  = $r->project_id;
+            $pn   = $r->project_name;
+
+            if (!isset($tree[$tid])) {
+                $tree[$tid] = ['name' => $tn, 'projects' => []];
+            }
+            if (!isset($tree[$tid]['projects'][$pid])) {
+                $tree[$tid]['projects'][$pid] = ['name' => $pn, 'tasks' => []];
+            }
+
+            /* Determine bucket */
+            $d = (int)$r->days_remaining;
+            if (empty($r->deadline) || $r->deadline === '0000-00-00') {
+                $bucket = 'none';
+            } elseif ($d >= 1  && $d <= 2)  { $bucket = '1-2'; }
+            elseif ($d >= 3  && $d <= 4)    { $bucket = '3-4'; }
+            elseif ($d >= 5  && $d <= 6)    { $bucket = '5-6'; }
+            elseif ($d >= 7  && $d <= 8)    { $bucket = '7-8'; }
+            elseif ($d >= 9  && $d <= 10)   { $bucket = '9-10'; }
+            elseif ($d > 10)                { $bucket = '11+'; }
+            elseif ($d >= -5 && $d <= 0)    { $bucket = 'od5'; }
+            else                            { $bucket = 'od5+'; }
+
+            $r->bucket = $bucket;
+            $tree[$tid]['projects'][$pid]['tasks'][] = $r;
+        }
+
+        // Sort tree by team name
+        uasort($tree, fn($a, $b) => strcmp($a['name'], $b['name']));
+
+        $projects = $this->db->query("SELECT id, title FROM $prj WHERE deleted=0 ORDER BY title")->getResult();
+
+        $view_data['aging_tree']           = $tree;
+        $view_data['aging_teams']          = $teams_raw;
+        $view_data['aging_projects']       = $projects;
+        $view_data['aging_team_filter']    = $team_id_filter;
+        $view_data['aging_project_filter'] = $project_id_filter;
+
+        return $this->template->view("custom_reports/task_aging_report", $view_data);
     }
 }

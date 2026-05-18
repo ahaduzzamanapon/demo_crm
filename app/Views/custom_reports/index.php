@@ -84,9 +84,22 @@
                                             placeholder="<?php echo app_lang('end_date'); ?>"
                                             value="<?php echo $end_date; ?>" />
                                     </div>
+                                    <!-- Team filter: shown only on aging tab -->
+                                    <div class="col-md-2" id="aging-team-col" style="display:none;">
+                                        <div class="form-group">
+                                            <label class="form-label">Team</label>
+                                            <select name="aging_team_id" id="aging_team_id" class="form-control">
+                                                <option value="">All Teams</option>
+                                                <?php foreach ($teams_dropdown_list as $t): ?>
+                                                <option value="<?php echo $t->id; ?>"><?php echo htmlspecialchars($t->title); ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+
                                     <div class="col-md-4">
                                         <div class="d-flex gap-2">
-                                            <button type="submit" class="btn btn-primary">Filter</button>
+                                            <button type="submit" class="btn btn-primary" id="main-filter-btn">Filter</button>
                                             <?php echo anchor(get_uri("custom_reports"), "<i data-feather='x' class='icon-16'></i> " . app_lang('clear'), array("class" => "btn btn-default")); ?>
                                             <button type="button" class="btn btn-default" onclick="printReport()"> <i
                                                     data-feather="printer" class="icon-16"></i>
@@ -117,6 +130,8 @@
                             data-feather="users" class="icon-16"></i> Team Wise Report</a></li>
                 <li class="nav-item"><a class="nav-link" href="#effort-report" data-bs-toggle="tab"><i
                             data-feather="bar-chart-2" class="icon-16"></i> Project Wise Effort</a></li>
+                <li class="nav-item"><a class="nav-link" href="#aging-report" data-bs-toggle="tab" id="aging-report-tab"><i
+                            data-feather="alert-circle" class="icon-16"></i> Task Aging Report</a></li>
             </ul>
             <div class="tab-content">
                 <div role="tabpanel" class="tab-pane fade show active" id="project-report">
@@ -864,6 +879,14 @@
                     </div>
                 </div>
 
+                <!-- Task Aging Report tab pane -->
+                <div role="tabpanel" class="tab-pane fade" id="aging-report">
+                    <iframe id="aging-report-frame"
+                            style="width:100%;border:none;min-height:75vh;"
+                            src="about:blank">
+                    </iframe>
+                </div>
+
             </div>
         </div>
     </div>
@@ -872,7 +895,103 @@
     $(document).ready(function () {
         $("#project-table").appTable({ source: 'data/projects.json' });
         $(".select2").select2();
+
+        var agingBaseUrl = '<?php echo get_uri('custom_reports/task_aging_report'); ?>';
+
+        /* Show/hide aging team filter based on active tab */
+        function toggleAgingFilter() {
+            var isAging = document.getElementById('aging-report').classList.contains('active');
+            document.getElementById('aging-team-col').style.display = isAging ? '' : 'none';
+        }
+
+        /* Lazy-load aging report iframe on first tab click */
+        document.getElementById('aging-report-tab').addEventListener('shown.bs.tab', function () {
+            toggleAgingFilter();
+            var frame = document.getElementById('aging-report-frame');
+            if (frame.src === 'about:blank' || frame.src === '') {
+                frame.src = agingBaseUrl;
+            }
+        });
+
+        /* On other tabs shown, hide aging team filter */
+        document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tab) {
+            if (tab.id !== 'aging-report-tab') {
+                tab.addEventListener('shown.bs.tab', toggleAgingFilter);
+            }
+        });
+
+        /* Intercept Filter button: if aging tab active, update iframe src */
+        document.getElementById('main-filter-btn').addEventListener('click', function(e) {
+            var isAging = document.getElementById('aging-report').classList.contains('active');
+            if (!isAging) return; /* normal submit for other tabs */
+            e.preventDefault();
+            var teamId    = document.getElementById('aging_team_id').value;
+            var projectId = document.getElementById('project_id').value;
+            var url = agingBaseUrl;
+            var params = [];
+            if (teamId)    params.push('aging_team_id='    + encodeURIComponent(teamId));
+            if (projectId) params.push('aging_project_id=' + encodeURIComponent(projectId));
+            if (params.length) url += '?' + params.join('&');
+            document.getElementById('aging-report-frame').src = url;
+        });
     });
+
+    /* ── Global helpers callable from aging report iframe ── */
+
+    window.openCrmTaskModal = function (taskId) {
+        var url = '<?php echo get_uri('tasks/view'); ?>';
+        $('#ajaxModalContent').html($('#ajaxModalOriginalContent').html());
+        $('#ajaxModal').modal('show');
+        $.ajax({
+            url: url,
+            data: { ajaxModal: 1, id: taskId },
+            type: 'POST',
+            cache: false,
+            success: function (html) {
+                $('#ajaxModalContent').html(html);
+                feather.replace();
+            }
+        });
+    };
+
+    window.openCrmProjectEffortModal = function (projectId, teamId) {
+        var url = '<?php echo get_uri('custom_reports/project_effort_quick_modal'); ?>';
+
+        /* Remove any previous instance */
+        var old = document.getElementById('agingEffortModal');
+        if (old) { bootstrap.Modal.getInstance(old)?.hide(); old.remove(); }
+
+        var modalEl = document.createElement('div');
+        modalEl.id = 'agingEffortModal';
+        modalEl.className = 'modal fade';
+        modalEl.setAttribute('tabindex', '-1');
+        modalEl.style.zIndex = '1060';
+        modalEl.innerHTML =
+            '<div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width:95vw;">' +
+            '<div class="modal-content" style="max-height:85vh;overflow-y:auto;">' +
+            '<div id="agingEffortModalBody"><div class="text-center p-4"><div class="spinner-border text-primary"></div></div></div>' +
+            '</div></div>';
+        document.body.appendChild(modalEl);
+
+        modalEl.addEventListener('shown.bs.modal', function () {
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length >= 2) backdrops[backdrops.length - 1].style.zIndex = '1055';
+        });
+        modalEl.addEventListener('hidden.bs.modal', function () { modalEl.remove(); });
+
+        new bootstrap.Modal(modalEl, { backdrop: true }).show();
+
+        $.ajax({
+            url: url,
+            data: { project_id: projectId, team_id: teamId },
+            type: 'POST',
+            cache: false,
+            success: function (html) {
+                document.getElementById('agingEffortModalBody').innerHTML = html;
+                feather.replace();
+            }
+        });
+    };
 
     function printReport() {
         var reportContainer = document.querySelector('.tab-pane.fade.active.show').innerHTML;
