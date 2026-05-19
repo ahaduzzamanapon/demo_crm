@@ -697,6 +697,102 @@ class Custom_reports extends Security_Controller
         return $this->template->view("custom_reports/team_wise_tasks_modal", $view_data);
     }
 
+    public function aging_bucket_modal()
+    {
+        $project_id = (int)$this->request->getPost('project_id');
+        $bucket     = $this->request->getPost('bucket');
+        $team_id    = (int)$this->request->getPost('team_id');
+
+        $tsk = $this->db->prefixTable('tasks');
+        $prj = $this->db->prefixTable('projects');
+        $tst = $this->db->prefixTable('task_status');
+        $usr = $this->db->prefixTable('users');
+        $pt  = $this->db->prefixTable('project_time');
+        $tem = $this->db->prefixTable('team');
+
+        $bucket_labels = [
+            '1-2'  => '1–2 Days',    '3-4'  => '3–4 Days',
+            '5-6'  => '5–6 Days',    '7-8'  => '7–8 Days',
+            '9-10' => '9–10 Days',   '11+'  => 'Due (11+ Days)',
+            'od5'  => 'Due (≤5 Days)', 'od5+' => 'Overdue (>5 Days)',
+            'none' => 'No Deadline',
+        ];
+
+        /* Safe prefix — avoids comparing DATETIME column with '' which crashes MySQL strict mode */
+        $ds = "(t.deadline IS NOT NULL AND t.deadline > '0000-00-00')";
+
+        $bucket_where = match($bucket) {
+            '1-2'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 1 AND 2",
+            '3-4'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 3 AND 4",
+            '5-6'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 5 AND 6",
+            '7-8'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 7 AND 8",
+            '9-10' => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 9 AND 10",
+            '11+'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) >= 11",
+            'od5'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN -5 AND 0",
+            'od5+' => "$ds AND DATEDIFF(t.deadline, CURDATE()) < -5",
+            'none' => '(t.deadline IS NULL OR t.deadline <= \'0000-00-00\')',
+            default => '1=0',
+        };
+
+        /* Filter by team members (same logic as main report) */
+        $team_filter = '';
+        if ($team_id > 0) {
+            $team = $this->db->query("SELECT members FROM $tem WHERE id = $team_id AND deleted = 0")->getRow();
+            if ($team && !empty($team->members)) {
+                $uids = implode(',', array_filter(array_map('intval', explode(',', $team->members))));
+                if ($uids) {
+                    $team_filter = "AND t.assigned_to IN ($uids)";
+                }
+            }
+        }
+
+        $sql = "
+            SELECT
+                t.id              AS task_id,
+                t.title           AS task_title,
+                t.deadline,
+                t.estimated_time,
+                p.title           AS project_title,
+                ts.title          AS status_title,
+                ts.color          AS status_color,
+                CONCAT(u.first_name,' ',u.last_name) AS assigned_to_name,
+                (
+                    SELECT GROUP_CONCAT(CONCAT(uc.first_name,' ',uc.last_name) ORDER BY uc.first_name SEPARATOR ', ')
+                    FROM $usr uc
+                    WHERE FIND_IN_SET(uc.id, t.collaborators) AND uc.id != t.assigned_to
+                ) AS collaborator_names,
+                CASE WHEN t.deadline IS NULL OR t.deadline <= '0000-00-00'
+                     THEN NULL ELSE DATEDIFF(t.deadline, CURDATE()) END AS days_remaining,
+                COALESCE((
+                    SELECT (COALESCE(SUM(IF(pt.end_time IS NOT NULL,
+                                TIME_TO_SEC(TIMEDIFF(pt.end_time, pt.start_time)), 0)), 0)
+                            + COALESCE(SUM(pt.hours * 3600), 0)) / 3600
+                    FROM $pt pt
+                    WHERE pt.task_id = t.id AND pt.deleted = 0 AND pt.status = 'logged'
+                ), 0) AS logged_hours
+            FROM $tsk t
+            LEFT JOIN $prj p  ON p.id  = t.project_id
+            LEFT JOIN $tst ts ON ts.id = t.status_id
+            LEFT JOIN $usr u  ON u.id  = t.assigned_to
+            WHERE t.deleted = 0 AND t.project_id = $project_id AND $bucket_where $team_filter
+            ORDER BY CASE WHEN t.deadline IS NULL OR t.deadline <= '0000-00-00'
+                          THEN NULL ELSE t.deadline END, t.title
+        ";
+
+        $tasks   = $this->db->query($sql)->getResult();
+        $project = $this->db->query("SELECT title FROM $prj WHERE id = $project_id")->getRow();
+
+        $view_data = [
+            'tasks'        => $tasks,
+            'bucket_label' => $bucket_labels[$bucket] ?? $bucket,
+            'modal_title'  => ($project ? htmlspecialchars($project->title) . ' — ' : '')
+                            . ($bucket_labels[$bucket] ?? $bucket)
+                            . ' — ' . count($tasks) . ' task(s)',
+        ];
+
+        return $this->template->view('custom_reports/aging_bucket_modal', $view_data);
+    }
+
     public function project_effort_quick_modal()
     {
         $project_id = (int)$this->request->getPost('project_id');

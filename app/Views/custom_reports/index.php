@@ -993,6 +993,45 @@
         });
     };
 
+    window.openAgingBucketModal = function (projectId, bucketKey, teamId) {
+        var url = '<?php echo get_uri('custom_reports/aging_bucket_modal'); ?>';
+
+        /* Remove any previous instance */
+        var old = document.getElementById('agingBucketModal');
+        if (old) { var inst = bootstrap.Modal.getInstance(old); if (inst) inst.hide(); old.remove(); }
+
+        var modalEl = document.createElement('div');
+        modalEl.id = 'agingBucketModal';
+        modalEl.className = 'modal fade';
+        modalEl.setAttribute('tabindex', '-1');
+        modalEl.style.zIndex = '1060';
+        modalEl.innerHTML =
+            '<div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width:92vw;">' +
+            '<div class="modal-content">' +
+            '<div id="agingBucketModalBody"><div class="text-center p-4"><div class="spinner-border text-primary"></div></div></div>' +
+            '</div></div>';
+        document.body.appendChild(modalEl);
+
+        modalEl.addEventListener('shown.bs.modal', function () {
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length >= 2) backdrops[backdrops.length - 1].style.zIndex = '1055';
+        });
+        modalEl.addEventListener('hidden.bs.modal', function () { modalEl.remove(); });
+
+        new bootstrap.Modal(modalEl, { backdrop: true }).show();
+
+        $.ajax({
+            url: url,
+            data: { project_id: projectId, bucket: bucketKey, team_id: teamId },
+            type: 'POST',
+            cache: false,
+            success: function (html) {
+                document.getElementById('agingBucketModalBody').innerHTML = html;
+                if (typeof feather !== 'undefined') feather.replace();
+            }
+        });
+    };
+
     function printReport() {
         var reportContainer = document.querySelector('.tab-pane.fade.active.show').innerHTML;
         var originalContent = document.body.innerHTML;
