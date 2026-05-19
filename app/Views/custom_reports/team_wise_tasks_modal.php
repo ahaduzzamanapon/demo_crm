@@ -35,9 +35,9 @@
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 <div class="modal-body clearfix">
-    <div class="table-responsive">
-        <table class="table table-sm table-striped table-bordered" style="font-size:13px;">
-            <thead class="table-dark">
+    <div class="table-responsive" style="max-height:65vh; overflow-y:auto;">
+        <table class="table table-sm table-striped table-bordered" style="font-size:13px; border-collapse:separate; border-spacing:0;">
+            <thead class="table-dark" style="position:sticky; top:0; z-index:5;">
                 <tr>
                     <th style="min-width:40px;"><?php echo app_lang('id'); ?></th>
                     <th style="min-width:180px;"><?php echo app_lang('title'); ?></th>
