@@ -711,10 +711,10 @@ class Custom_reports extends Security_Controller
         $tem = $this->db->prefixTable('team');
 
         $bucket_labels = [
-            '1-2'  => '1–2 Days',    '3-4'  => '3–4 Days',
+            '0-2'  => '0–2 Days',    '3-4'  => '3–4 Days',
             '5-6'  => '5–6 Days',    '7-8'  => '7–8 Days',
-            '9-10' => '9–10 Days',   '11+'  => 'Due (11+ Days)',
-            'od5'  => 'Due (≤5 Days)', 'od5+' => 'Overdue (>5 Days)',
+            '9-10' => '9–10 Days',   '11+'  => '11+ Days',
+            'od5'  => 'Due (<=5 Days)', 'od5+' => 'Overdue (>5 Days)',
             'none' => 'No Deadline',
         ];
 
@@ -722,13 +722,13 @@ class Custom_reports extends Security_Controller
         $ds = "(t.deadline IS NOT NULL AND t.deadline > '0000-00-00')";
 
         $bucket_where = match($bucket) {
-            '1-2'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 1 AND 2",
+            '0-2'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 0 AND 2",
             '3-4'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 3 AND 4",
             '5-6'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 5 AND 6",
             '7-8'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 7 AND 8",
             '9-10' => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN 9 AND 10",
             '11+'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) >= 11",
-            'od5'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN -5 AND 0",
+            'od5'  => "$ds AND DATEDIFF(t.deadline, CURDATE()) BETWEEN -5 AND -1",
             'od5+' => "$ds AND DATEDIFF(t.deadline, CURDATE()) < -5",
             'none' => '(t.deadline IS NULL OR t.deadline <= \'0000-00-00\')',
             default => '1=0',
@@ -775,6 +775,7 @@ class Custom_reports extends Security_Controller
             LEFT JOIN $tst ts ON ts.id = t.status_id
             LEFT JOIN $usr u  ON u.id  = t.assigned_to
             WHERE t.deleted = 0 AND t.project_id = $project_id AND $bucket_where $team_filter
+              AND (LOWER(ts.title) NOT IN ('done', 'completed', 'finished', 'closed') OR ts.title IS NULL)
             ORDER BY CASE WHEN t.deadline IS NULL OR t.deadline <= '0000-00-00'
                           THEN NULL ELSE t.deadline END, t.title
         ";
@@ -939,7 +940,9 @@ class Custom_reports extends Security_Controller
         }
 
         /* ── 2. Query tasks ── */
-        $where = "WHERE $tsk.deleted = 0 AND $prj.deleted = 0";
+        $where = "WHERE $tsk.deleted = 0 AND $prj.deleted = 0
+                    AND (LOWER($tst.title) NOT IN ('done', 'completed', 'finished', 'closed') OR $tst.title IS NULL)
+                    AND (LOWER($prj.status) NOT IN ('finished', 'canceled', 'closed', 'complete', 'completed') OR $prj.status IS NULL)";
 
         if (!empty($user_team_map)) {
             $all_uids = implode(',', array_keys($user_team_map));
@@ -1001,13 +1004,13 @@ class Custom_reports extends Security_Controller
             $d = (int)$r->days_remaining;
             if (empty($r->deadline) || $r->deadline === '0000-00-00') {
                 $bucket = 'none';
-            } elseif ($d >= 1  && $d <= 2)  { $bucket = '1-2'; }
+            } elseif ($d >= 0  && $d <= 2)  { $bucket = '0-2'; }
             elseif ($d >= 3  && $d <= 4)    { $bucket = '3-4'; }
             elseif ($d >= 5  && $d <= 6)    { $bucket = '5-6'; }
             elseif ($d >= 7  && $d <= 8)    { $bucket = '7-8'; }
             elseif ($d >= 9  && $d <= 10)   { $bucket = '9-10'; }
             elseif ($d > 10)                { $bucket = '11+'; }
-            elseif ($d >= -5 && $d <= 0)    { $bucket = 'od5'; }
+            elseif ($d >= -5 && $d <= -1)   { $bucket = 'od5'; }
             else                            { $bucket = 'od5+'; }
 
             $r->bucket = $bucket;

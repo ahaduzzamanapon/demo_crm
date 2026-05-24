@@ -1,13 +1,13 @@
 <?php
 $buckets = [
-    '1-2'  => ['label' => '1–2 Days',        'bg' => '#00bcd4'],
+    '0-2'  => ['label' => '0–2 Days',       'bg' => '#00bcd4'],
     '3-4'  => ['label' => '3–4 Days',        'bg' => '#00bcd4'],
     '5-6'  => ['label' => '5–6 Days',        'bg' => '#00acc1'],
     '7-8'  => ['label' => '7–8 Days',        'bg' => '#00acc1'],
     '9-10' => ['label' => '9–10 Days',       'bg' => '#0288d1'],
-    '11+'  => ['label' => '11+ Days',   'bg' => '#1565c0'],
-    'od5'  => ['label' => 'Due <=5', 'bg' => '#ff5722'],
-    'od5+' => ['label' => 'Overdue > 5', 'bg' => '#b71c1c'],
+    '11+'  => ['label' => '11+ Days',        'bg' => '#1565c0'],
+    'od5'  => ['label' => 'Due <=5',         'bg' => '#ff5722'],
+    'od5+' => ['label' => 'Overdue > 5',     'bg' => '#b71c1c'],
     'none' => ['label' => 'No Deadline',     'bg' => '#9e9e9e'],
 ];
 ?>
@@ -179,7 +179,8 @@ $buckets = [
                     ?>
                     <td class="bucket-count">
                         <?php if ($cnt > 0): ?>
-                        <a class="count-badge has-tasks count-link" href="#"
+                        <a class="count-badge count-link" href="#"
+                           style="background:<?php echo $b['bg']; ?>;color:#fff;"
                            data-project-id="<?php echo $pid; ?>"
                            data-team-id="<?php echo $tid; ?>"
                            data-bucket="<?php echo $bkey; ?>"><?php echo $cnt; ?></a>
