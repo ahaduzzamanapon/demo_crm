@@ -796,7 +796,7 @@
                                         <th colspan="3" class="sc sc-eff">Efforts</th>
                                         <?php foreach ($effort_staff as $es):
                                             if (($eff_member_totals[$es->id] ?? 0) == 0) continue; ?>
-                                            <th rowspan="2"><?php echo htmlspecialchars($es->first_name); ?></th>
+                                            <th rowspan="2"><?php echo htmlspecialchars($es->first_name . " " . $es->last_name); ?></th>
                                         <?php endforeach; ?>
                                     </tr>
                                     <tr>

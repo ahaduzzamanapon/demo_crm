@@ -95,6 +95,7 @@ class Roles extends Security_Controller
             $view_data['can_add_remove_project_members'] = get_array_value($permissions, "can_add_remove_project_members");
 
             $view_data['can_create_tasks'] = get_array_value($permissions, "can_create_tasks");
+            $view_data['can_create_sub_tasks'] = get_array_value($permissions, "can_create_sub_tasks");
             $view_data['can_edit_tasks'] = get_array_value($permissions, "can_edit_tasks");
             $view_data['can_delete_tasks'] = get_array_value($permissions, "can_delete_tasks");
             $view_data['can_comment_on_tasks'] = get_array_value($permissions, "can_comment_on_tasks");
@@ -231,6 +232,7 @@ class Roles extends Security_Controller
         $can_add_remove_project_members = $this->request->getPost('can_add_remove_project_members');
 
         $can_create_tasks = $this->request->getPost('can_create_tasks');
+        $can_create_sub_tasks = $this->request->getPost('can_create_sub_tasks');
         $can_edit_tasks = $this->request->getPost('can_edit_tasks');
         $can_delete_tasks = $this->request->getPost('can_delete_tasks');
         $can_comment_on_tasks = $this->request->getPost('can_comment_on_tasks');
@@ -345,6 +347,7 @@ class Roles extends Security_Controller
             "can_delete_projects" => $can_delete_projects,
             "can_add_remove_project_members" => $can_add_remove_project_members,
             "can_create_tasks" => $can_create_tasks,
+            "can_create_sub_tasks" => $can_create_sub_tasks,
             "can_edit_tasks" => $can_edit_tasks,
             "can_delete_tasks" => $can_delete_tasks,
             "can_comment_on_tasks" => $can_comment_on_tasks,

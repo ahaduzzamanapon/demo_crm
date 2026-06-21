@@ -4,13 +4,14 @@ namespace App\Controllers;
 
 class Custom_reports extends Security_Controller
 {
-
+    protected $taskStatusModel;
+    protected $projectsModel;
+    protected $db;
 
     public function __construct()
     {
         parent::__construct();
         helper(['form']);
-        parent::__construct();
         $this->taskStatusModel = model('App\Models\Task_status_model');
         $this->projectsModel = model('App\Models\Projects_model');
         $this->Timesheets_model = model('App\Models\Timesheets_model');
@@ -20,8 +21,23 @@ class Custom_reports extends Security_Controller
         $this->Team_model = model('App\Models\Team_model');
     }
 
+    // Check if logged-in user can access custom reports.
+    // Admin: always allowed. Permission 'all': allowed. Permission 'own': allowed (data filtered).
+    // Permission '' (no): redirect to forbidden.
+    private function _check_custom_reports_permission()
+    {
+        if ($this->login_user->is_admin) {
+            return; // admin can always access
+        }
+        $perm = get_array_value($this->login_user->permissions, "custom_reports");
+        if ($perm !== "all" && $perm !== "own") {
+            app_redirect("forbidden");
+        }
+    }
+
     public function index()
     {
+        $this->_check_custom_reports_permission();
 
         $project_id = $this->request->getGet('project_id');
         $member_id = $this->request->getGet('member_id');
@@ -57,7 +73,11 @@ class Custom_reports extends Security_Controller
         }
         $view_data['projects_dropdown'] = $projects_dropdown;
 
-        $members = $this->Users_model->get_all_where(array("user_type" => "staff", "deleted" => 0, "status" => "active"))->getResult();
+        $members_where = array("user_type" => "staff", "deleted" => 0, "status" => "active");
+        if ($custom_reports_permission === "own") {
+            $members_where["id"] = $this->login_user->id;
+        }
+        $members = $this->Users_model->get_all_where($members_where)->getResult();
         $members_dropdown = array("" => "- " . app_lang('member') . " -");
         foreach ($members as $member) {
             $members_dropdown[$member->id] = $member->first_name . ' ' . $member->last_name;
@@ -360,6 +380,12 @@ class Custom_reports extends Security_Controller
             if (empty($member_ids)) {
                 continue;
             }
+            if ($custom_reports_permission === "own") {
+                if (!in_array($this->login_user->id, $member_ids)) {
+                    continue;
+                }
+                $member_ids = array($this->login_user->id);
+            }
             $member_ids_str = implode(',', $member_ids);
 
             // Date condition: task created OR status-changed OR has activity log in range
@@ -582,6 +608,7 @@ class Custom_reports extends Security_Controller
 
     public function team_wise_tasks_modal()
     {
+        $this->_check_custom_reports_permission();
         $team_id    = $this->request->getPost('team_id');
         $project_id = $this->request->getPost('project_id');
         $status_id  = $this->request->getPost('status_id');
@@ -596,6 +623,13 @@ class Custom_reports extends Security_Controller
         
         $member_ids_raw = array_filter(array_map('trim', explode(',', $team->members)));
         $member_ids     = array_filter($member_ids_raw, 'is_numeric');
+        $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports");
+        if ($custom_reports_permission === "own") {
+            if (!in_array($this->login_user->id, $member_ids)) {
+                app_redirect("forbidden");
+            }
+            $member_ids = array($this->login_user->id);
+        }
         if (empty($member_ids)) {
             $view_data['tasks'] = [];
             return $this->template->view("custom_reports/team_wise_tasks_modal", $view_data);
@@ -699,6 +733,7 @@ class Custom_reports extends Security_Controller
 
     public function aging_bucket_modal()
     {
+        $this->_check_custom_reports_permission();
         $project_id = (int)$this->request->getPost('project_id');
         $bucket     = $this->request->getPost('bucket');
         $team_id    = (int)$this->request->getPost('team_id');
@@ -736,7 +771,10 @@ class Custom_reports extends Security_Controller
 
         /* Filter by team members (same logic as main report) */
         $team_filter = '';
-        if ($team_id > 0) {
+        $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports");
+        if ($custom_reports_permission === "own") {
+            $team_filter = "AND t.assigned_to = " . $this->login_user->id;
+        } else if ($team_id > 0) {
             $team = $this->db->query("SELECT members FROM $tem WHERE id = $team_id AND deleted = 0")->getRow();
             if ($team && !empty($team->members)) {
                 $uids = implode(',', array_filter(array_map('intval', explode(',', $team->members))));
@@ -796,6 +834,7 @@ class Custom_reports extends Security_Controller
 
     public function project_effort_quick_modal()
     {
+        $this->_check_custom_reports_permission();
         $project_id = (int)$this->request->getPost('project_id');
         $start_date = $this->request->getPost('start_date') ?: null;
         $end_date   = $this->request->getPost('end_date')   ?: null;
@@ -809,6 +848,19 @@ class Custom_reports extends Security_Controller
         $usr = $this->db->prefixTable('users');
         $tsk = $this->db->prefixTable('tasks');
 
+        $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports");
+        
+        $effort_staff_where = "";
+        $effort_user_filter = "";
+        $task_user_filter = "";
+        $subquery_task_user_filter = "";
+        if ($custom_reports_permission === "own") {
+            $effort_staff_where = " AND u.id = " . $this->login_user->id;
+            $effort_user_filter = " AND pt2.user_id = " . $this->login_user->id;
+            $task_user_filter = " AND $tsk.assigned_to = " . $this->login_user->id;
+            $subquery_task_user_filter = " AND t.assigned_to = " . $this->login_user->id;
+        }
+
         $project = $this->db->query("SELECT id, title, project_type FROM $prj WHERE id = $project_id")->getRow();
 
         // Active staff who logged time on this project
@@ -817,7 +869,7 @@ class Custom_reports extends Security_Controller
             FROM $usr u
             INNER JOIN $pt ON $pt.user_id = u.id
             WHERE $pt.project_id = $project_id AND $pt.deleted = 0 AND $pt.status = 'logged'
-              AND u.deleted = 0
+              AND u.deleted = 0 $effort_staff_where
             ORDER BY u.first_name
         ")->getResult();
 
@@ -828,14 +880,14 @@ class Custom_reports extends Security_Controller
                 p.title AS project_name,
                 p.project_type,
                 COALESCE((SELECT SUM(t.estimated_time) FROM $tsk t
-                           WHERE t.project_id = p.id AND t.deleted = 0), 0) AS estimated_hours,
+                           WHERE t.project_id = p.id AND t.deleted = 0 $subquery_task_user_filter), 0) AS estimated_hours,
                 COALESCE((
                     SELECT (COALESCE(SUM(IF(pt2.end_time IS NOT NULL,
                                 TIME_TO_SEC(TIMEDIFF(pt2.end_time, pt2.start_time)), 0)), 0)
                             + COALESCE(SUM(pt2.hours * 3600), 0)) / 3600
                     FROM $pt pt2
                     WHERE pt2.project_id = p.id AND pt2.deleted = 0 AND pt2.status = 'logged'
-                      AND DATE(pt2.start_time) < '$date_from'
+                      AND DATE(pt2.start_time) < '$date_from' $effort_user_filter
                 ), 0) AS preceding_hours,
                 COALESCE((
                     SELECT (COALESCE(SUM(IF(pt2.end_time IS NOT NULL,
@@ -843,7 +895,7 @@ class Custom_reports extends Security_Controller
                             + COALESCE(SUM(pt2.hours * 3600), 0)) / 3600
                     FROM $pt pt2
                     WHERE pt2.project_id = p.id AND pt2.deleted = 0 AND pt2.status = 'logged'
-                      AND DATE(pt2.start_time) BETWEEN '$date_from' AND '$date_to'
+                      AND DATE(pt2.start_time) BETWEEN '$date_from' AND '$date_to' $effort_user_filter
                 ), 0) AS current_hours
             FROM $prj p
             WHERE p.id = $project_id AND p.deleted = 0
@@ -896,7 +948,7 @@ class Custom_reports extends Security_Controller
             FROM $tsk
             LEFT JOIN {$this->db->prefixTable('task_status')} ts ON ts.id = $tsk.status_id
             LEFT JOIN $usr ON $usr.id = $tsk.assigned_to
-            WHERE $tsk.project_id = $project_id AND $tsk.deleted = 0
+            WHERE $tsk.project_id = $project_id AND $tsk.deleted = 0 $task_user_filter
             ORDER BY $tsk.id DESC
         ";
 
@@ -913,6 +965,7 @@ class Custom_reports extends Security_Controller
 
     public function task_aging_report()
     {
+        $this->_check_custom_reports_permission();
         $tsk = $this->db->prefixTable('tasks');
         $prj = $this->db->prefixTable('projects');
         $usr = $this->db->prefixTable('users');
@@ -929,10 +982,15 @@ class Custom_reports extends Security_Controller
             "SELECT id, title, members FROM $tem WHERE deleted=0 $team_where ORDER BY title"
         )->getResult();
 
+        $custom_reports_permission = get_array_value($this->login_user->permissions, "custom_reports");
+
         $user_team_map = []; // user_id → ['id'=>, 'name'=>]
         foreach ($teams_raw as $t) {
             $ids = array_filter(array_map('trim', explode(',', $t->members ?? '')), 'is_numeric');
             foreach ($ids as $uid) {
+                if ($custom_reports_permission === "own" && $uid != $this->login_user->id) {
+                    continue;
+                }
                 if (!isset($user_team_map[$uid])) {
                     $user_team_map[$uid] = ['id' => $t->id, 'name' => $t->title];
                 }
@@ -944,7 +1002,9 @@ class Custom_reports extends Security_Controller
                     AND (LOWER($tst.title) NOT IN ('done', 'completed', 'finished', 'closed') OR $tst.title IS NULL)
                     AND (LOWER($prj.status) NOT IN ('finished', 'canceled', 'closed', 'complete', 'completed') OR $prj.status IS NULL)";
 
-        if (!empty($user_team_map)) {
+        if ($custom_reports_permission === "own") {
+            $where .= " AND $tsk.assigned_to = " . $this->login_user->id;
+        } else if (!empty($user_team_map)) {
             $all_uids = implode(',', array_keys($user_team_map));
             $where   .= " AND $tsk.assigned_to IN ($all_uids)";
         } else if ($team_id_filter) {

@@ -408,7 +408,7 @@ if ($total_sub_tasks) {
                         <div class="checklist-items" id="sub-tasks">
 
                         </div>
-                        <?php if ($can_create_tasks) { ?>
+                        <?php if ($can_create_sub_tasks) { ?>
                             <div class="form-group">
                                 <div class="mt5 col-md-12 p0">
                                     <?php

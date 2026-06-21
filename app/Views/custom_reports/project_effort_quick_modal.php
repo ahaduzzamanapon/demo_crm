@@ -22,7 +22,7 @@
                 <th colspan="2" style="border-bottom:none;">Logged Hours</th>
                 <?php foreach ($effort_staff as $s): ?>
                 <th style="min-width:70px; font-size:11px;">
-                    <img src="<?php echo get_avatar($s->image); ?>" style="width:20px;height:20px;border-radius:50%;margin-bottom:2px;display:block;margin-inline:auto;"/><?php echo htmlspecialchars($s->first_name); ?>
+                    <img src="<?php echo get_avatar($s->image); ?>" style="width:20px;height:20px;border-radius:50%;margin-bottom:2px;display:block;margin-inline:auto;"/><?php echo htmlspecialchars($s->first_name . " " . $s->last_name); ?>
                 </th>
                 <?php endforeach; ?>
             </tr>

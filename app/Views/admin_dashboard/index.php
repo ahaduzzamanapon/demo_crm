@@ -23,6 +23,12 @@
                         </a>
                     </li>
                     <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="tab-staff-projects" data-bs-toggle="tab" href="#staff-projects" role="tab" aria-controls="staff-projects" aria-selected="false">
+                            <i data-feather="briefcase" class="icon-16 mr5"></i>
+                            Staff-wise Projects
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <a class="nav-link" id="tab-billable-piechart" data-bs-toggle="tab" href="#billable-piechart" role="tab" aria-controls="billable-piechart" aria-selected="false">
                             <i data-feather="pie-chart" class="icon-16 mr5"></i>
                             Billable Pie Chart
@@ -105,9 +111,10 @@
 
                                 <!-- Search bar -->
                                 <div class="tab-search-bar">
-                                    <div class="tab-search-wrap">
+                                    <div class="tab-search-wrap" style="max-width:550px; flex-wrap:wrap; gap:6px;">
                                         <svg class="tab-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                                        <input type="text" id="ru-search" class="tab-search-input" placeholder="Search projects or staff…" autocomplete="off">
+                                        <div id="ru-search-tags" style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;"></div>
+                                        <input type="text" id="ru-search" class="tab-search-input" placeholder="Search projects or staff…" autocomplete="off" style="flex:1; min-width:120px; width:auto;">
                                         <button id="ru-search-clear" class="tab-search-clear" style="display:none;" title="Clear">&times;</button>
                                     </div>
                                     <span id="ru-count" class="tab-search-count"></span>
@@ -216,6 +223,102 @@
 
                             </div>
                             <!-- End Chart Area -->
+
+                        </div>
+                    </div>
+
+                    <!-- Tab 5: Staff-wise Projects -->
+                    <div class="tab-pane fade" id="staff-projects" role="tabpanel" aria-labelledby="tab-staff-projects">
+                        <div class="admin-tab-inner" id="sp-tab-inner">
+
+                            <!-- Header -->
+                            <div class="ru-header-row" style="border-bottom: none; padding-bottom: 5px;">
+                                <div>
+                                    <h3 class="ru-main-title">Staff-wise Projects</h3>
+                                    <p class="ru-subtitle">Active projects grouped by project and showing assigned staff members</p>
+                                </div>
+                            </div>
+
+                            <!-- View Toggles -->
+                            <div class="sp-button-group" style="padding: 10px 24px 15px; display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #e2e8f0; background: #fafafa;">
+                                <button class="sp-view-btn active" id="sp-btn-all" onclick="switchSPView('all')">All Assignments</button>
+                                <button class="sp-view-btn" id="sp-btn-active" onclick="switchSPView('active')">List of Active Resources</button>
+                                <button class="sp-view-btn" id="sp-btn-inactive" onclick="switchSPView('inactive')">List of Inactive Resources</button>
+                            </div>
+
+                            <!-- Search bar -->
+                            <div class="tab-search-bar">
+                                <div class="tab-search-wrap" style="max-width:400px;">
+                                    <svg class="tab-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                    <input type="text" id="sp-search" class="tab-search-input" placeholder="Search staff, designation or project…" autocomplete="off">
+                                    <button id="sp-search-clear" class="tab-search-clear" style="display:none;" title="Clear">&times;</button>
+                                </div>
+                                <span id="sp-count" class="tab-search-count"></span>
+                            </div>
+
+                            <!-- Loading -->
+                            <div id="sp-loading" class="ru-loading-state" style="display:flex;">
+                                <div class="ru-spinner"></div>
+                                <span>Loading project assignments…</span>
+                            </div>
+
+                            <!-- Content -->
+                            <div id="sp-content" style="display:none; padding:20px;">
+                                <!-- View 1: All Assignments (Project-based rowspan) -->
+                                <div id="sp-all-wrapper" class="table-responsive" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                                    <table class="sp-table">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center" style="width: 60px;">SL</th>
+                                                <th style="width: 250px;">Project</th>
+                                                <th>Name</th>
+                                                <th>Designation</th>
+                                                <th>Engage up to</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sp-table-body">
+                                            <!-- populated dynamically -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- View 2: Active Resources -->
+                                <div id="sp-active-wrapper" class="table-responsive" style="display:none; background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                                    <table class="sp-table">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center" style="width: 60px;">SL</th>
+                                                <th>Name</th>
+                                                <th>Designation</th>
+                                                <th class="text-center" style="width: 140px;">Active Tasks</th>
+                                                <th style="width: 150px;">Engage up to</th>
+                                                <th>Projects</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sp-active-body">
+                                            <!-- populated dynamically -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- View 3: Inactive Resources -->
+                                <div id="sp-inactive-wrapper" class="table-responsive" style="display:none; background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                                    <table class="sp-table">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center" style="width: 60px;">SL</th>
+                                                <th>Name</th>
+                                                <th>Designation</th>
+                                                <th>Status</th>
+                                                <th>Projects</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sp-inactive-body">
+                                            <!-- populated dynamically -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
 
                         </div>
                     </div>
@@ -660,7 +763,8 @@
 .pp-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:box-shadow 0.2s; }
 .pp-card:hover { box-shadow:0 4px 18px rgba(0,0,0,0.07); }
 .pp-card.pp-inconsistent { border-color:#fca5a5; box-shadow:0 0 0 2px rgba(239,68,68,0.12); }
-.pp-card.pp-overdue      { border-color:#fed7aa; }
+.pp-card.pp-past-due     { border-color:#fed7aa; }
+.pp-card.pp-overdue      { border-color:#fca5a5; box-shadow:0 0 0 2px rgba(239,68,68,0.06); }
 
 .pp-card-header { display:flex; justify-content:space-between; align-items:center; padding:13px 18px 8px; flex-wrap:wrap; gap:8px; }
 .pp-project-name { font-size:14px; font-weight:700; color:#1e293b; }
@@ -671,6 +775,7 @@
 .pp-badge { font-size:10.5px; font-weight:600; padding:2px 9px; border-radius:20px; }
 .pp-badge-deadline   { background:#f1f5f9; color:#475569; }
 .pp-badge-overdue    { background:#fee2e2; color:#dc2626; }
+.pp-badge-past-due   { background:#ffedd5; color:#ea580c; }
 .pp-badge-status     { background:#ede9fe; color:#7c3aed; }
 .pp-badge-inconsist  { background:#ef4444; color:#fff; animation:pp-pulse 1.4s ease-in-out infinite; }
 @keyframes pp-pulse  { 0%,100%{opacity:1} 50%{opacity:0.65} }
@@ -700,7 +805,8 @@
 .pp-chip-total  { background:#f1f5f9; color:#475569; }
 .pp-chip-done   { background:#dcfce7; color:#16a34a; }
 .pp-chip-dev    { background:#dbeafe; color:#2563eb; }
-.pp-chip-qa     { background:#ede9fe; color:#7c3aed; }
+.pp-chip-total-qa { background:#ede9fe; color:#7c3aed; }
+.pp-chip-done-qa  { background:#fae8ff; color:#a21caf; }
 .pp-chip-rem    { background:#f1f5f9; color:#64748b; }
 .pp-chip-rh     { background:#fef9c3; color:#92400e; }
 
@@ -752,6 +858,10 @@
 .ru-rem-warn { color:#f59e0b; font-weight:700; }
 .ru-rem-over { color:#ef4444; font-weight:700; }
 
+/* Clickable spent and remaining cells */
+.ru-spent-td, .ru-rem-td { cursor: pointer; transition: background-color 0.2s; }
+.ru-spent-td:hover, .ru-rem-td:hover { background-color: #f1f5f9 !important; text-decoration: underline; }
+
 /* Spent bar mini */
 .ru-bar-mini { height:4px; border-radius:2px; background:#e2e8f0; margin-top:3px; overflow:hidden; }
 .ru-bar-mini-fill { height:100%; border-radius:2px; transition:width 0.4s; }
@@ -769,9 +879,50 @@
 .tab-search-clear { border:none; background:none; cursor:pointer; color:#94a3b8; font-size:16px; line-height:1; padding:0 2px; transition:color .2s; }
 .tab-search-clear:hover { color:#ef4444; }
 .tab-search-count { font-size:11.5px; color:#94a3b8; white-space:nowrap; font-weight:500; }
+.ru-tag { display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; color: #475569; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0; }
+.ru-tag-remove { cursor: pointer; color: #94a3b8; font-size: 11px; font-weight: bold; line-height: 1; margin-left: 2px; }
+.ru-tag-remove:hover { color: #ef4444; }
 
 /* Hidden card when filtered out */
 .pp-card.pp-hidden, .ru-card.pp-hidden { display:none; }
+
+/* ── Staff-wise Projects Report Table Styles ── */
+.sp-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.sp-table th { padding:10px 12px; background:#f8fafc; color:#475569; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #e2e8f0; text-align:left; }
+.sp-table th.text-center, .sp-table td.text-center { text-align:center; }
+.sp-table td { padding:10px 12px; border-bottom:1px solid #e2e8f0; color:#334155; vertical-align:middle; text-align:left; background:#fff; }
+.sp-table td.proj-cell { font-weight:600; color:#1e293b; border-right:1px solid #e2e8f0; }
+.sp-table tr:hover td { background:#f8fafc; }
+
+/* ── Staff-wise Projects Report View Toggle Buttons ── */
+.sp-view-btn {
+    padding: 6px 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.sp-view-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+.sp-view-btn.active {
+    background: #6366f1;
+    color: #fff;
+    border-color: #6366f1;
+}
+
+/* Active tasks cell hover */
+.sp-active-tasks-cell:hover {
+    background-color: #f1f5f9 !important;
+}
+.sp-active-tasks-cell:hover .badge {
+    opacity: 0.85;
+}
 </style>
 
 <!-- Load Chart.js from CDN -->
@@ -1382,10 +1533,14 @@ $(document).ready(function () {
                 var pctClass    = isOvertime ? ' overtime' : '';
                 var pctLabel    = m.util_pct + '%' + (isOvertime ? ' ▲' : '');
                 // Convert decimal hours → "Xh Ym"  e.g. 7.65 → "7h 39m"
-                var hRaw        = m.hours > 0 ? m.hours : 0;
+                var hRaw        = m.hours > 0 ? parseFloat(m.hours) : 0;
                 var hInt        = Math.floor(hRaw);
                 var hMin        = Math.round((hRaw - hInt) * 60);
-                var hoursStr    = m.hours > 0 ? (hInt + 'h ' + hMin + 'm') : '0h 0m';
+                if (hMin === 60) {
+                    hInt += 1;
+                    hMin = 0;
+                }
+                var hoursStr    = hRaw > 0 ? (hInt + 'h ' + hMin + 'm') : '0h 0m';
 
                 out += '<tr class="' + rowClass + '">';
                 // # col: 🥇 overall top, 👑 team topper, else row number
@@ -1539,6 +1694,20 @@ function markPerfOverride(userId, reportDate, overrideType) {
 (function() {
     var ppLoaded = false;
 
+    function formatHours(h) {
+        if (h === null || h === undefined) return '0h 0m';
+        var hVal = parseFloat(h);
+        var sign = hVal < 0 ? '-' : '';
+        hVal = Math.abs(hVal);
+        var hours = Math.floor(hVal);
+        var mins = Math.round((hVal - hours) * 60);
+        if (mins === 60) {
+            hours += 1;
+            mins = 0;
+        }
+        return sign + hours + 'h ' + mins + 'm';
+    }
+
     function loadProjectProgress() {
         var loading = document.getElementById('pp-loading');
         var content = document.getElementById('pp-content');
@@ -1569,54 +1738,74 @@ function markPerfOverride(userId, reportDate, overrideType) {
         }
         var html = '';
         projects.forEach(function(p) {
-            var cardCls = 'pp-card' + (p.is_inconsistent ? ' pp-inconsistent' : (p.is_overdue ? ' pp-overdue' : ''));
-            var dlBadge = !p.deadline
-                ? '<span class="pp-badge" style="background:#f1f5f9;color:#94a3b8;">No deadline</span>'
-                : (p.is_overdue
-                    ? '<span class="pp-badge pp-badge-overdue">&#9888; Overdue</span>'
-                    : '<span class="pp-badge pp-badge-deadline">&#128197; ' + esc(p.deadline) + '</span>');
-            var rdBadge = (p.RD === null || p.RD === undefined)
-                ? ''
-                : (p.is_overdue
-                    ? '<span class="pp-badge pp-badge-overdue">Past due</span>'
-                    : '<span class="pp-badge pp-badge-rd">' + p.RD + ' day' + (p.RD!=1?'s':'') + ' left</span>');
+            var cardCls = 'pp-card';
+            if (p.is_inconsistent) {
+                cardCls += ' pp-inconsistent';
+            } else if (p.is_overdue) {
+                cardCls += ' pp-overdue';
+            } else if (p.is_past_due) {
+                cardCls += ' pp-past-due';
+            }
+
+            var startDateLabel = p.start_date && p.start_date !== '0000-00-00' ? esc(p.start_date) : 'No start date';
+            var endDateLabel = p.deadline && p.deadline !== '0000-00-00' ? esc(p.deadline) : 'No deadline';
+            var dlBadge = '<span class="pp-badge pp-badge-deadline">&#128197; ' + startDateLabel + ' &rarr; ' + endDateLabel + '</span>';
+
+            var rdBadge = '';
+            if (p.RD !== null && p.RD !== undefined) {
+                if (p.is_overdue) {
+                    rdBadge = '<span class="pp-badge pp-badge-overdue">&#9888; Overdue (' + p.days_past + ' day' + (p.days_past!=1?'s':'') + ')</span>';
+                } else if (p.is_past_due) {
+                    rdBadge = '<span class="pp-badge pp-badge-past-due">&#9888; Past due (' + p.days_past + ' day' + (p.days_past!=1?'s':'') + ')</span>';
+                } else {
+                    rdBadge = '<span class="pp-badge pp-badge-rd">' + p.RD + ' day' + (p.RD!=1?'s':'') + ' left</span>';
+                }
+            }
+
             var incBadge = p.is_inconsistent ? '<span class="pp-badge pp-badge-inconsist">&#128308; Inconsistency</span>' : '';
             var stBadge  = p.status_label ? '<span class="pp-badge pp-badge-status">' + esc(p.status_label) + '</span>' : '';
 
-            // Stacked bar — overdue: remaining turns red; inconsistent: remaining pulses red
-            var barBg = p.is_overdue ? 'background:#fee2e2;' : '';
+            // Stacked bar — overdue: remaining turns red; past due: remaining turns orange; inconsistent: remaining pulses red
+            var barBg = '';
+            if (p.is_overdue) {
+                barBg = 'background:#fee2e2;';
+            } else if (p.is_past_due) {
+                barBg = 'background:#ffedd5;';
+            }
             var bar = '<div class="pp-bar" style="' + barBg + '">';
             var eTitle = esc(p.project_title).replace(/'/g, "\\'");
             if (p.done_pct > 0) bar += '<div class="pp-bar-seg pp-bar-seg-done" onclick="openPPTasksModal(' + p.project_id + ', \'done\', \'' + eTitle + '\')" style="width:' + p.done_pct + '%;" title="Done: ' + p.done_pct + '%"></div>';
             if (p.dev_pct  > 0) bar += '<div class="pp-bar-seg pp-bar-seg-dev"  onclick="openPPTasksModal(' + p.project_id + ', \'dev\', \'' + eTitle + '\')" style="width:' + p.dev_pct  + '%;" title="Dev: '  + p.dev_pct  + '%"></div>';
-            if (p.qa_pct   > 0) bar += '<div class="pp-bar-seg pp-bar-seg-qa"   onclick="openPPTasksModal(' + p.project_id + ', \'qa\', \'' + eTitle + '\')" style="width:' + p.qa_pct   + '%;" title="QA: '   + p.qa_pct   + '%"></div>';
             if (p.remaining_pct > 0) {
-                var remSeg = p.is_inconsistent ? 'pp-bar-seg-inc' : (p.is_overdue ? 'pp-bar-seg-inc' : 'pp-bar-seg-rem');
+                var remSeg = 'pp-bar-seg-rem';
+                if (p.is_inconsistent || p.is_overdue || p.is_past_due) {
+                    remSeg = 'pp-bar-seg-inc';
+                }
                 bar += '<div class="pp-bar-seg ' + remSeg + '" onclick="openPPTasksModal(' + p.project_id + ', \'rem\', \'' + eTitle + '\')" style="width:' + p.remaining_pct + '%;" title="Remaining: ' + p.remaining_pct + '%"></div>';
             }
             bar += '</div>';
 
             var pctRow = '<div style="display:flex;gap:10px;font-size:10.5px;margin-top:5px;flex-wrap:wrap;">'
-                + '<span style="color:#16a34a;font-weight:600;">Done ' + p.done_pct + '%</span>'
-                + '<span style="color:#2563eb;font-weight:600;">Dev ' + p.dev_pct + '%</span>'
-                + '<span style="color:#7c3aed;font-weight:600;">QA ' + p.qa_pct + '%</span>'
-                + '<span style="color:#94a3b8;">Rem ' + p.remaining_pct + '%</span>'
+                + '<span style="color:#16a34a;font-weight:600;">Done ' + parseFloat(p.done_pct).toFixed(1) + '%</span>'
+                + '<span style="color:#2563eb;font-weight:600;">Dev ' + parseFloat(p.dev_pct).toFixed(1) + '%</span>'
+                + '<span style="color:#94a3b8;">Rem ' + parseFloat(p.remaining_pct).toFixed(1) + '%</span>'
                 + '</div>';
 
             var chips = '<div class="pp-chips">'
                 + '<span class="pp-chip pp-chip-total">T: ' + p.T + '</span>'
                 + '<span class="pp-chip pp-chip-done" onclick="openPPTasksModal(' + p.project_id + ', \'done\', \'' + eTitle + '\')">Done: ' + p.Dq + '</span>'
                 + '<span class="pp-chip pp-chip-dev" onclick="openPPTasksModal(' + p.project_id + ', \'dev\', \'' + eTitle + '\')">Dev: ' + p.Dp + '</span>'
-                + '<span class="pp-chip pp-chip-qa" onclick="openPPTasksModal(' + p.project_id + ', \'qa\', \'' + eTitle + '\')">QA: ' + p.Qp + '</span>'
+                + '<span class="pp-chip pp-chip-total-qa" onclick="openPPTasksModal(' + p.project_id + ', \'total_qa\', \'' + eTitle + '\')">Total QA: ' + p.total_qa + '</span>'
+                + '<span class="pp-chip pp-chip-done-qa" onclick="openPPTasksModal(' + p.project_id + ', \'done_qa\', \'' + eTitle + '\')">Done QA: ' + p.done_qa + '</span>'
                 + '<span class="pp-chip pp-chip-rem" onclick="openPPTasksModal(' + p.project_id + ', \'rem\', \'' + eTitle + '\')">Left: ' + p.RT + '</span>'
-                + (p.avg_est_h > 0 ? '<span class="pp-chip pp-chip-rh">RH ' + p.RH + 'h / AH ' + p.AH + 'h</span>' : '')
+                + (p.avg_est_h > 0 ? '<span class="pp-chip pp-chip-rh">RH ' + formatHours(p.RH) + ' / AH ' + formatHours(p.AH) + '</span>' : '')
                 + '</div>';
 
             var incRow = '';
             if (p.is_inconsistent) {
                 incRow = '<div class="pp-inconsist-row">'
                     + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
-                    + '<strong>Inconsistency:</strong>&nbsp;' + p.RT + ' task(s) need ~' + p.RH + 'h but only ' + p.AH + 'h available (' + p.RD + ' days x 8h).'
+                    + '<strong>Inconsistency:</strong>&nbsp;' + p.RT + ' task(s) need ~' + formatHours(p.RH) + ' but only ' + formatHours(p.AH) + ' available (' + p.RD + ' days x 8h).'
                     + '</div>';
             }
 
@@ -1655,6 +1844,21 @@ function markPerfOverride(userId, reportDate, overrideType) {
 (function() {
     var ruLoaded = false;
 
+    function formatHours(h) {
+        if (h === null || h === undefined) return '0h 0m';
+        var hVal = parseFloat(h);
+        if (isNaN(hVal)) return '0h 0m';
+        var sign = hVal < 0 ? '-' : '';
+        hVal = Math.abs(hVal);
+        var hours = Math.floor(hVal);
+        var mins = Math.round((hVal - hours) * 60);
+        if (mins === 60) {
+            hours += 1;
+            mins = 0;
+        }
+        return sign + hours + 'h ' + mins + 'm';
+    }
+
     function loadResourceUtilization() {
         var loading = document.getElementById('ru-loading');
         var content = document.getElementById('ru-content');
@@ -1688,8 +1892,10 @@ function markPerfOverride(userId, reportDate, overrideType) {
         projects.forEach(function(proj) {
             var rows = '';
             var searchData = proj.project_title;
+            var eTitle = esc(proj.project_title).replace(/'/g, "\\'");
             proj.members.forEach(function(m) {
                 searchData += ' ' + m.name;
+                var eMember = esc(m.name).replace(/'/g, "\\'");
                 var remCls = 'ru-rem-ok';
                 if (m.remaining < 0) remCls = 'ru-rem-over';
                 else if (m.est > 0 && (m.spent / m.est) >= 0.8) remCls = 'ru-rem-warn';
@@ -1699,17 +1905,18 @@ function markPerfOverride(userId, reportDate, overrideType) {
                 var barColor = remCls === 'ru-rem-over' ? '#ef4444' : (remCls === 'ru-rem-warn' ? '#f59e0b' : '#22c55e');
 
                 var remLabel = m.remaining < 0
-                    ? '<span class="' + remCls + '">' + m.remaining + 'h <small>(over)</small></span>'
-                    : '<span class="' + remCls + '">' + m.remaining + 'h</span>';
+                    ? '<span class="' + remCls + '">' + formatHours(m.remaining) + ' <small>(over)</small></span>'
+                    : '<span class="' + remCls + '">' + formatHours(m.remaining) + '</span>';
 
                 rows += '<tr>'
                     + '<td title="' + esc(m.name) + '">' + esc(m.name) + '</td>'
-                    + '<td>' + m.est + 'h</td>'
-                    + '<td style="color:#3b82f6;font-weight:600;">'
-                    +   m.spent + 'h'
+                    + '<td>' + formatHours(m.est) + '</td>'
+                    + '<td class="ru-spent-td" style="color:#3b82f6;font-weight:600;" onclick="openRUMemberTasksModal(' + proj.project_id + ', ' + m.user_id + ', \'spent\', \'' + eTitle + '\', \'' + eMember + '\')">'
+                    +   formatHours(m.spent)
                     +   '<div class="ru-bar-mini"><div class="ru-bar-mini-fill" style="width:' + pct + '%;background:' + barColor + ';"></div></div>'
                     + '</td>'
-                    + '<td>' + remLabel + '</td>'
+                    + '<td class="ru-rem-td" onclick="openRUMemberTasksModal(' + proj.project_id + ', ' + m.user_id + ', \'remaining\', \'' + eTitle + '\', \'' + eMember + '\')">' + remLabel + '</td>'
+                    + '<td>' + esc(m.engage_up_to) + '</td>'
                     + '</tr>';
             });
 
@@ -1724,6 +1931,7 @@ function markPerfOverride(userId, reportDate, overrideType) {
                 +     '<th>Est. Hr</th>'
                 +     '<th>Spent</th>'
                 +     '<th>Remaining</th>'
+                +     '<th>Engage up to</th>'
                 +   '</tr></thead>'
                 +   '<tbody>' + rows + '</tbody>'
                 + '</table>'
@@ -1733,6 +1941,38 @@ function markPerfOverride(userId, reportDate, overrideType) {
         list.innerHTML = html;
         if (typeof window['_searchRefresh_ru-search'] === 'function') window['_searchRefresh_ru-search']();
     }
+
+    window.openRUMemberTasksModal = function(projectId, userId, category, projectTitle, memberName) {
+        var catName = category === 'spent' ? 'Spent Hours' : 'Remaining Hours';
+        document.getElementById('pp-modal-title').textContent = projectTitle + ' - ' + memberName + ' - ' + catName;
+        var content = document.getElementById('pp-modal-content');
+        content.innerHTML = '<div class="p20 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+        
+        var modalEl = document.getElementById('pp-tasks-modal');
+        if (typeof bootstrap !== 'undefined') {
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        } else {
+            $(modalEl).modal('show');
+        }
+
+        $.ajax({
+            url: '<?php echo get_uri("admin_dashboard/get_member_project_tasks_by_category"); ?>',
+            type: 'POST',
+            data: { project_id: projectId, user_id: userId, category: category },
+            dataType: 'json',
+            success: function(res) {
+                if (res.success) {
+                    content.innerHTML = res.html;
+                } else {
+                    content.innerHTML = '<div class="p20 text-danger text-center">Failed to load tasks.</div>';
+                }
+            },
+            error: function() {
+                content.innerHTML = '<div class="p20 text-danger text-center">Failed to connect to server.</div>';
+            }
+        });
+    };
 
     function esc(str) {
         return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1759,6 +1999,112 @@ function markPerfOverride(userId, reportDate, overrideType) {
         var clearBtn = document.getElementById(clearId);
         var countEl = document.getElementById(countId);
         if (!input) return;
+
+        if (inputId === 'ru-search') {
+            // Specialized tags search for Resource Utilization
+            var ruTags = [];
+            var tagsContainer = document.getElementById('ru-search-tags');
+            
+            function renderRUTags() {
+                if (!tagsContainer) return;
+                tagsContainer.innerHTML = '';
+                ruTags.forEach(function(tag) {
+                    var cleanTag = String(tag).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+                    var tagSpan = document.createElement('span');
+                    tagSpan.className = 'ru-tag';
+                    tagSpan.innerHTML = cleanTag + ' <span class="ru-tag-remove" data-tag="' + cleanTag + '">&times;</span>';
+                    tagsContainer.appendChild(tagSpan);
+                });
+                
+                if (ruTags.length > 0) {
+                    input.placeholder = '';
+                    if (clearBtn) clearBtn.style.display = 'inline';
+                } else {
+                    input.placeholder = 'Search projects or staff…';
+                    if (clearBtn && !input.value.trim()) clearBtn.style.display = 'none';
+                }
+            }
+
+            function doFilter() {
+                var q = input.value.trim().toLowerCase();
+                var list = document.getElementById(listId);
+                if (!list) return;
+                var cards = list.querySelectorAll('.' + cardClass);
+                var visible = 0;
+                cards.forEach(function(card) {
+                    var searchText = (card.getAttribute('data-search') || card.getAttribute('data-title') || '').toLowerCase();
+                    var match = true;
+                    // Match all tags (AND search)
+                    ruTags.forEach(function(tag) {
+                        if (searchText.indexOf(tag) === -1) {
+                            match = false;
+                        }
+                    });
+                    // Match current text input
+                    if (q && searchText.indexOf(q) === -1) {
+                        match = false;
+                    }
+                    card.classList.toggle('pp-hidden', !match);
+                    if (match) visible++;
+                });
+
+                if (clearBtn) clearBtn.style.display = (ruTags.length > 0 || q) ? 'inline' : 'none';
+                if (countEl) {
+                    countEl.textContent = (ruTags.length > 0 || q)
+                        ? visible + ' of ' + cards.length + ' project' + (cards.length !== 1 ? 's' : '')
+                        : cards.length + ' project' + (cards.length !== 1 ? 's' : '');
+                }
+            }
+
+            input.addEventListener('input', doFilter);
+
+            // Handle Key events for adding/removing tags
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    var val = input.value.trim().toLowerCase();
+                    if (val && ruTags.indexOf(val) === -1) {
+                        ruTags.push(val);
+                        input.value = '';
+                        renderRUTags();
+                        doFilter();
+                    }
+                } else if (e.key === 'Backspace' && !input.value) {
+                    if (ruTags.length > 0) {
+                        ruTags.pop();
+                        renderRUTags();
+                        doFilter();
+                    }
+                }
+            });
+
+            // Handle tag removal click
+            if (tagsContainer) {
+                tagsContainer.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('ru-tag-remove')) {
+                        var tagToRemove = e.target.getAttribute('data-tag');
+                        ruTags = ruTags.filter(function(tag) {
+                            return tag !== tagToRemove;
+                        });
+                        renderRUTags();
+                        doFilter();
+                    }
+                });
+            }
+
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    ruTags = [];
+                    input.value = '';
+                    renderRUTags();
+                    doFilter();
+                    input.focus();
+                });
+            }
+
+            window['_searchRefresh_' + inputId] = doFilter;
+            return;
+        }
 
         function doFilter() {
             var q = input.value.trim().toLowerCase();
@@ -1802,7 +2148,13 @@ function markPerfOverride(userId, reportDate, overrideType) {
 
 // Task List Modal Logic
 window.openPPTasksModal = function(projectId, category, projectTitle) {
-    var catName = category === 'done' ? 'Done' : (category === 'dev' ? 'In Dev' : (category === 'qa' ? 'QA' : 'Remaining'));
+    var catName = '';
+    if (category === 'done') catName = 'Done';
+    else if (category === 'dev') catName = 'In Dev';
+    else if (category === 'total_qa') catName = 'Total QA';
+    else if (category === 'done_qa') catName = 'Done QA';
+    else catName = 'Remaining';
+    
     document.getElementById('pp-modal-title').textContent = projectTitle + ' - ' + catName + ' Tasks';
     var content = document.getElementById('pp-modal-content');
     content.innerHTML = '<div class="p20 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
@@ -1833,6 +2185,280 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
         }
     });
 };
+
+(function() {
+    var spLoaded = false;
+    var spRawData = [];       // holds projects (all assignments)
+    var spActiveData = [];    // holds active resources
+    var spInactiveData = [];  // holds inactive resources
+    var currentSPView = 'all';
+
+    function loadStaffProjects() {
+        var loading = document.getElementById('sp-loading');
+        var content = document.getElementById('sp-content');
+        if (!loading || !content) return;
+        loading.style.display = 'flex';
+        content.style.display = 'none';
+
+        $.ajax({
+            url: '<?php echo get_uri("admin_dashboard/get_staff_projects"); ?>',
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                spRawData = data.projects || [];
+                spActiveData = data.active_resources || [];
+                spInactiveData = data.inactive_resources || [];
+                switchSPView('all'); // default view
+            },
+            error: function() {
+                loading.innerHTML = '<p style="color:#ef4444;padding:20px;text-align:center;">Failed to load data. Please refresh.</p>';
+            }
+        });
+    }
+
+    window.switchSPView = function(view) {
+        currentSPView = view;
+        
+        // Update active class on buttons
+        document.querySelectorAll('.sp-view-btn').forEach(function(btn) {
+            btn.classList.remove('active');
+        });
+        document.getElementById('sp-btn-' + view).classList.add('active');
+
+        // Toggle visibility of table wrappers
+        document.getElementById('sp-all-wrapper').style.display = view === 'all' ? 'block' : 'none';
+        document.getElementById('sp-active-wrapper').style.display = view === 'active' ? 'block' : 'none';
+        document.getElementById('sp-inactive-wrapper').style.display = view === 'inactive' ? 'block' : 'none';
+
+        // Re-run filter/render for current view
+        applySPFilter();
+    };
+
+    function renderStaffProjects(projects) {
+        var tbody = document.getElementById('sp-table-body');
+        var countEl = document.getElementById('sp-count');
+        if (!tbody) return;
+
+        if (!projects || projects.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:#94a3b8;">No staff project assignments found.</td></tr>';
+            if (countEl) countEl.textContent = '0 projects';
+            return;
+        }
+
+        var html = '';
+        var sl = 1;
+
+        projects.forEach(function(proj) {
+            var members = proj.members || [];
+            if (members.length === 0) return;
+
+            var rowspan = members.length;
+            var eTitle = esc(proj.project_title);
+
+            members.forEach(function(m, idx) {
+                html += '<tr>';
+                
+                if (idx === 0) {
+                    html += '<td class="text-center proj-cell" rowspan="' + rowspan + '">' + sl + '</td>';
+                    html += '<td class="proj-cell" rowspan="' + rowspan + '">';
+                    html += '  <a href="<?php echo get_uri("projects/view/"); ?>' + proj.project_id + '" target="_blank" style="color:inherit; text-decoration:none; font-weight:600;">' + eTitle + '</a>';
+                    html += '</td>';
+                    sl++;
+                }
+
+                html += '<td>' + esc(m.name) + '</td>';
+                html += '<td>' + esc(m.designation) + '</td>';
+                html += '<td>' + esc(m.engage_up_to) + '</td>';
+                html += '</tr>';
+            });
+        });
+
+        tbody.innerHTML = html;
+        if (countEl) {
+            countEl.textContent = projects.length + ' project' + (projects.length !== 1 ? 's' : '');
+        }
+    }
+
+    function renderActiveResources(members) {
+        var tbody = document.getElementById('sp-active-body');
+        var countEl = document.getElementById('sp-count');
+        if (!tbody) return;
+
+        if (!members || members.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:#94a3b8;">No active resources found.</td></tr>';
+            if (countEl) countEl.textContent = '0 active resources';
+            return;
+        }
+
+        var html = '';
+        members.forEach(function(m, idx) {
+            var eName = esc(m.name).replace(/'/g, "\\'");
+            html += '<tr>'
+                + '<td class="text-center">' + (idx + 1) + '</td>'
+                + '<td><strong>' + esc(m.name) + '</strong></td>'
+                + '<td>' + esc(m.designation) + '</td>'
+                + '<td class="text-center sp-active-tasks-cell" style="cursor:pointer;" onclick="openSPActiveTasksModal(' + m.user_id + ', \'' + eName + '\')">'
+                + '  <span class="badge bg-success" style="font-size:11px;">' + m.active_tasks_count + ' active task' + (m.active_tasks_count !== 1 ? 's' : '') + '</span>'
+                + '</td>'
+                + '<td>' + esc(m.engage_up_to) + '</td>'
+                + '<td>' + esc(m.projects) + '</td>'
+                + '</tr>';
+        });
+
+        tbody.innerHTML = html;
+        if (countEl) {
+            countEl.textContent = members.length + ' active resource' + (members.length !== 1 ? 's' : '');
+        }
+    }
+
+    function renderInactiveResources(members) {
+        var tbody = document.getElementById('sp-inactive-body');
+        var countEl = document.getElementById('sp-count');
+        if (!tbody) return;
+
+        if (!members || members.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:#94a3b8;">No inactive resources found.</td></tr>';
+            if (countEl) countEl.textContent = '0 inactive resources';
+            return;
+        }
+
+        var html = '';
+        members.forEach(function(m, idx) {
+            var statusHtml = m.projects && m.projects !== '-'
+                ? '<span class="badge bg-warning" style="font-size:11px; color:#1e293b;">No active tasks (Assigned)</span>'
+                : '<span class="badge bg-secondary" style="font-size:11px;">Idle (No Projects)</span>';
+                
+            html += '<tr>'
+                + '<td class="text-center">' + (idx + 1) + '</td>'
+                + '<td><strong>' + esc(m.name) + '</strong></td>'
+                + '<td>' + esc(m.designation) + '</td>'
+                + '<td>' + statusHtml + '</td>'
+                + '<td>' + esc(m.projects) + '</td>'
+                + '</tr>';
+        });
+
+        tbody.innerHTML = html;
+        if (countEl) {
+            countEl.textContent = members.length + ' inactive resource' + (members.length !== 1 ? 's' : '');
+        }
+    }
+
+    window.openSPActiveTasksModal = function(userId, memberName) {
+        document.getElementById('pp-modal-title').textContent = memberName + ' - Active Tasks';
+        var content = document.getElementById('pp-modal-content');
+        content.innerHTML = '<div class="p20 text-center"><div class="spinner-border text-primary" role="status"></div></div>';
+        
+        var modalEl = document.getElementById('pp-tasks-modal');
+        if (typeof bootstrap !== 'undefined') {
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        } else {
+            $(modalEl).modal('show');
+        }
+
+        $.ajax({
+            url: '<?php echo get_uri("admin_dashboard/get_member_active_tasks"); ?>',
+            type: 'POST',
+            data: { user_id: userId },
+            dataType: 'json',
+            success: function(res) {
+                if (res.success) {
+                    content.innerHTML = res.html;
+                } else {
+                    content.innerHTML = '<div class="p20 text-danger text-center">Failed to load tasks.</div>';
+                }
+            },
+            error: function() {
+                content.innerHTML = '<div class="p20 text-danger text-center">Failed to connect to server.</div>';
+            }
+        });
+    };
+
+    function applySPFilter() {
+        var searchInput = document.getElementById('sp-search');
+        if (!searchInput) return;
+        var q = searchInput.value.trim().toLowerCase();
+        var clearBtn = document.getElementById('sp-search-clear');
+        if (clearBtn) clearBtn.style.display = q ? 'inline' : 'none';
+
+        if (currentSPView === 'all') {
+            if (!q) {
+                renderStaffProjects(spRawData);
+                return;
+            }
+            var filtered = [];
+            spRawData.forEach(function(proj) {
+                var matchProject = proj.project_title.toLowerCase().indexOf(q) !== -1;
+                var matchedMembers = proj.members.filter(function(m) {
+                    return m.name.toLowerCase().indexOf(q) !== -1 || m.designation.toLowerCase().indexOf(q) !== -1;
+                });
+
+                if (matchProject) {
+                    filtered.push(proj);
+                } else if (matchedMembers.length > 0) {
+                    var cloned = Object.assign({}, proj, { members: matchedMembers });
+                    filtered.push(cloned);
+                }
+            });
+            renderStaffProjects(filtered);
+        } else if (currentSPView === 'active') {
+            if (!q) {
+                renderActiveResources(spActiveData);
+                return;
+            }
+            var filtered = spActiveData.filter(function(m) {
+                return m.name.toLowerCase().indexOf(q) !== -1 || 
+                       m.designation.toLowerCase().indexOf(q) !== -1 ||
+                       m.projects.toLowerCase().indexOf(q) !== -1;
+            });
+            renderActiveResources(filtered);
+        } else if (currentSPView === 'inactive') {
+            if (!q) {
+                renderInactiveResources(spInactiveData);
+                return;
+            }
+            var filtered = spInactiveData.filter(function(m) {
+                return m.name.toLowerCase().indexOf(q) !== -1 || 
+                       m.designation.toLowerCase().indexOf(q) !== -1 ||
+                       m.projects.toLowerCase().indexOf(q) !== -1;
+            });
+            renderInactiveResources(filtered);
+        }
+    }
+
+    function esc(str) {
+        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Live search
+    var searchInput = document.getElementById('sp-search');
+    var clearBtn = document.getElementById('sp-search-clear');
+    if (searchInput) {
+        searchInput.addEventListener('input', applySPFilter);
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            applySPFilter();
+            searchInput.focus();
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var tabLink = document.getElementById('tab-staff-projects');
+        if (tabLink) {
+            tabLink.addEventListener('shown.bs.tab', function() {
+                if (spLoaded) return;
+                spLoaded = true;
+                loadStaffProjects();
+            });
+        }
+    });
+})();
 </script>
 
 <!-- Project Progress Tasks Modal -->

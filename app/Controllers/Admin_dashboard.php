@@ -60,15 +60,27 @@ class Admin_dashboard extends Security_Controller
             $status_map[(int)$s->id] = strtolower(trim($s->key_name));
         }
 
-        // All active (non-deleted) projects
+        // All active (non-deleted) projects with "Open" status
         $projects = $db->query(
             "SELECT p.id, p.title, p.deadline, p.start_date,
                     ps.title AS status_label
              FROM $projects_table p
              LEFT JOIN $project_status_table ps ON ps.id = p.status_id
-             WHERE p.deleted=0
+             WHERE p.deleted=0 AND ps.title='Open'
              ORDER BY p.deadline IS NULL ASC, p.deadline ASC"
         )->getResult();
+
+        // Fetch and map label lists
+        $labels_table = $db->prefixTable('labels');
+        $labels_list = $db->query("SELECT id, title FROM $labels_table WHERE deleted=0 AND context='task'")->getResult();
+
+        $qa_label_ids = [];
+        foreach ($labels_list as $lbl) {
+            $title_lower = strtolower(trim($lbl->title));
+            if ($title_lower === 'qa') {
+                $qa_label_ids[] = (int)$lbl->id;
+            }
+        }
 
         $today  = new \DateTime('today');
         $output = [];
@@ -76,46 +88,55 @@ class Admin_dashboard extends Security_Controller
         foreach ($projects as $proj) {
             $pid = (int)$proj->id;
 
-            // Task counts per status with avg estimated_time
-            $task_rows = $db->query(
-                "SELECT status_id,
-                        COUNT(*) AS cnt,
-                        AVG(NULLIF(estimated_time, 0)) AS avg_est
+            // Fetch all tasks for this project
+            $tasks = $db->query(
+                "SELECT status_id, estimated_time, labels
                  FROM $tasks_table
-                 WHERE deleted=0 AND project_id=$pid AND parent_task_id=0
-                 GROUP BY status_id"
+                 WHERE deleted=0 AND project_id=$pid AND parent_task_id=0"
             )->getResult();
 
-            $T  = 0; $Dq = 0; $Dp = 0; $Qp = 0;
+            $T  = 0; $Dq = 0; $Dp = 0;
+            $total_qa = 0; $done_qa = 0;
             $weighted_est = 0; $est_count = 0;
 
-            foreach ($task_rows as $tr) {
-                $cnt = (int)$tr->cnt;
-                $T  += $cnt;
-                $key = $status_map[(int)$tr->status_id] ?? '';
+            foreach ($tasks as $task) {
+                $task_label_ids = array_filter(explode(',', $task->labels ?? ''));
+                $task_label_ids = array_map('intval', $task_label_ids);
 
-                if ($tr->avg_est > 0) {
-                    $weighted_est += $tr->avg_est * $cnt;
-                    $est_count    += $cnt;
+                $is_qa_task   = !empty(array_intersect($task_label_ids, $qa_label_ids));
+                $is_main_task = !$is_qa_task;
+
+                $key = $status_map[(int)$task->status_id] ?? '';
+
+                if ($is_main_task) {
+                    $T++;
+                    if ($task->estimated_time > 0) {
+                        $weighted_est += (float)$task->estimated_time;
+                        $est_count++;
+                    }
+
+                    if (in_array($key, ['done', 'completed', 'closed', 'qa_completed'])) {
+                        $Dq++;
+                    } elseif (in_array($key, ['in_progress', 'development', 'dev_in_progress', 'doing'])) {
+                        $Dp++;
+                    }
                 }
 
-                if (in_array($key, ['done', 'completed', 'closed', 'qa_completed'])) {
-                    $Dq += $cnt;
-                } elseif (in_array($key, ['in_progress', 'development', 'dev_in_progress', 'doing'])) {
-                    $Dp += $cnt;
-                } elseif (strpos($key, 'qa') !== false || $key === 'testing' || $key === 'review') {
-                    $Qp += $cnt;
+                if ($is_qa_task) {
+                    $total_qa++;
+                    if (in_array($key, ['done', 'completed', 'closed', 'qa_completed'])) {
+                        $done_qa++;
+                    }
                 }
             }
 
-            if ($T === 0) continue;
+            if ($T === 0 && $total_qa === 0) continue;
 
             $H = ($est_count > 0) ? ($weighted_est / $est_count) : 1;
 
-            $done_pct      = round(($Dq / $T) * 100, 1);
-            $dev_pct       = round(($Dp / $T) * 100, 1);
-            $qa_pct        = round(($Qp / $T) * 100, 1);
-            $remaining_pct = max(0, 100 - $done_pct - $dev_pct - $qa_pct);
+            $done_pct      = ($T > 0) ? round(($Dq / $T) * 100, 1) : 0;
+            $dev_pct       = ($T > 0) ? round(($Dp / $T) * 100, 1) : 0;
+            $remaining_pct = round(max(0, 100 - $done_pct - $dev_pct), 1);
 
             // Time inconsistency logic (only if deadline set)
             $deadline_raw = $proj->deadline ?? '';
@@ -124,15 +145,30 @@ class Admin_dashboard extends Security_Controller
 
             $deadline_dt     = null;
             $RD              = null;
+            $is_past_due     = false;
             $is_overdue      = false;
             $is_inconsistent = false;
+            $days_past       = 0;
 
             if ($has_deadline) {
                 $deadline_dt     = new \DateTime($deadline_raw);
                 $diff            = $today->diff($deadline_dt);
-                $RD              = ($deadline_dt >= $today) ? (int)$diff->days : 0;
-                $is_overdue      = ($deadline_dt < $today);
-                $is_inconsistent = (!$is_overdue && $RD <= 2 && ($RT * $H) > ($RD * 8));
+                if ($deadline_dt >= $today) {
+                    $RD          = (int)$diff->days;
+                    $is_overdue  = false;
+                    $is_past_due = false;
+                } else {
+                    $RD          = 0;
+                    $days_past   = (int)$diff->days;
+                    if ($days_past > 10) {
+                        $is_overdue  = true;
+                        $is_past_due = false;
+                    } else {
+                        $is_overdue  = false;
+                        $is_past_due = true;
+                    }
+                }
+                $is_inconsistent = (!$is_overdue && !$is_past_due && $RD <= 2 && ($RT * $H) > ($RD * 8));
             }
 
             $RH = round($RT * $H, 1);
@@ -142,21 +178,25 @@ class Admin_dashboard extends Security_Controller
                 'project_id'      => $pid,
                 'project_title'   => $proj->title,
                 'deadline'        => $proj->deadline,
+                'start_date'      => $proj->start_date,
                 'status_label'    => $proj->status_label ?? 'Active',
                 'T'               => $T,
                 'Dq'              => $Dq,
                 'Dp'              => $Dp,
-                'Qp'              => $Qp,
+                'total_qa'        => $total_qa,
+                'done_qa'         => $done_qa,
                 'RT'              => $RT,
                 'RD'              => $RD,
                 'RH'              => $RH,
                 'AH'              => $AH,
                 'done_pct'        => $done_pct,
                 'dev_pct'         => $dev_pct,
-                'qa_pct'          => $qa_pct,
+                'qa_pct'          => 0,
                 'remaining_pct'   => $remaining_pct,
                 'is_inconsistent' => $is_inconsistent,
                 'is_overdue'      => $is_overdue,
+                'is_past_due'     => $is_past_due,
+                'days_past'       => $days_past,
                 'avg_est_h'       => round($H, 2),
             ];
         }
@@ -178,8 +218,20 @@ class Admin_dashboard extends Security_Controller
         $tasks_table       = $db->prefixTable('tasks');
         $task_status_table = $db->prefixTable('task_status');
         
+        // Fetch and map label lists
+        $labels_table = $db->prefixTable('labels');
+        $labels_list = $db->query("SELECT id, title FROM $labels_table WHERE deleted=0 AND context='task'")->getResult();
+
+        $qa_label_ids = [];
+        foreach ($labels_list as $lbl) {
+            $title_lower = strtolower(trim($lbl->title));
+            if ($title_lower === 'qa') {
+                $qa_label_ids[] = (int)$lbl->id;
+            }
+        }
+
         // Only load main tasks (parent_task_id=0) matching the progress logic
-        $sql = "SELECT t.id, t.title, ts.key_name, ts.title AS status_title, ts.color 
+        $sql = "SELECT t.id, t.title, t.labels, ts.key_name, ts.title AS status_title, ts.color 
                 FROM $tasks_table t
                 LEFT JOIN $task_status_table ts ON ts.id = t.status_id
                 WHERE t.project_id = $project_id AND t.deleted = 0 AND t.parent_task_id = 0";
@@ -188,23 +240,26 @@ class Admin_dashboard extends Security_Controller
         
         $filtered = [];
         foreach ($tasks as $t) {
+            $task_label_ids = array_filter(explode(',', $t->labels ?? ''));
+            $task_label_ids = array_map('intval', $task_label_ids);
+
+            $is_qa_task   = !empty(array_intersect($task_label_ids, $qa_label_ids));
+            $is_main_task = !$is_qa_task;
+
             $key = strtolower(trim($t->key_name));
             
             $is_done = in_array($key, ['done', 'completed', 'closed', 'qa_completed']);
             $is_dev  = in_array($key, ['in_progress', 'development', 'dev_in_progress', 'doing']);
-            $is_qa   = (strpos($key, 'qa') !== false || $key === 'testing' || $key === 'review');
             
-            if ($is_done) {
-                $task_cat = 'done';
-            } elseif ($is_dev) {
-                $task_cat = 'dev';
-            } elseif ($is_qa) {
-                $task_cat = 'qa';
-            } else {
-                $task_cat = 'rem';
-            }
-            
-            if ($category === $task_cat) {
+            if ($category === 'done' && $is_main_task && $is_done) {
+                $filtered[] = $t;
+            } elseif ($category === 'dev' && $is_main_task && $is_dev) {
+                $filtered[] = $t;
+            } elseif ($category === 'rem' && $is_main_task && !$is_done && !$is_dev) {
+                $filtered[] = $t;
+            } elseif ($category === 'total_qa' && $is_qa_task) {
+                $filtered[] = $t;
+            } elseif ($category === 'done_qa' && $is_qa_task && $is_done) {
                 $filtered[] = $t;
             }
         }
@@ -227,6 +282,129 @@ class Admin_dashboard extends Security_Controller
         return $this->response->setJSON(['success' => true, 'html' => $html]);
     }
 
+    public function get_member_project_tasks_by_category()
+    {
+        $this->access_only_team_members();
+        $db = \Config\Database::connect();
+        
+        $project_id = (int)$this->request->getPost('project_id');
+        $user_id    = (int)$this->request->getPost('user_id');
+        $category   = $this->request->getPost('category'); // spent, remaining
+        
+        $tasks_table       = $db->prefixTable('tasks');
+        $task_status_table = $db->prefixTable('task_status');
+        $timesheet_table   = $db->prefixTable('project_time');
+
+        // Helper function to format hours
+        $format_hours = function($hours) {
+            if ($hours === null || $hours === '') return '0h 0m';
+            $hVal = (float)$hours;
+            $sign = $hVal < 0 ? '-' : '';
+            $hVal = abs($hVal);
+            $hours_int = floor($hVal);
+            $mins = round(($hVal - $hours_int) * 60);
+            if ($mins == 60) {
+                $hours_int += 1;
+                $mins = 0;
+            }
+            return "{$sign}{$hours_int}h {$mins}m";
+        };
+
+        $html = '';
+
+        if ($category === 'remaining') {
+            // Query all tasks assigned to the user on this project
+            $sql = "SELECT t.id, t.title, t.estimated_time, ts.key_name, ts.title AS status_title, ts.color,
+                           (SELECT SUM(TIMESTAMPDIFF(SECOND, pt.start_time, pt.end_time)) / 3600 
+                            FROM $timesheet_table pt 
+                            WHERE pt.task_id = t.id AND pt.user_id = $user_id AND pt.deleted = 0 AND pt.end_time IS NOT NULL AND pt.end_time != '0000-00-00 00:00:00') AS spent_hours
+                    FROM $tasks_table t
+                    LEFT JOIN $task_status_table ts ON ts.id = t.status_id
+                    WHERE t.project_id = $project_id 
+                      AND t.assigned_to = $user_id 
+                      AND t.deleted = 0";
+            
+            $tasks = $db->query($sql)->getResult();
+            $filtered = [];
+            foreach ($tasks as $t) {
+                $key = strtolower(trim($t->key_name ?? ''));
+                $is_done = in_array($key, ['done', 'completed', 'closed', 'qa_completed']);
+                if (!$is_done) {
+                    $filtered[] = $t;
+                }
+            }
+
+            if (empty($filtered)) {
+                $html = '<div class="p20 text-center color-secondary">No remaining tasks found.</div>';
+            } else {
+                $html .= '<ul class="list-group">';
+                foreach ($filtered as $t) {
+                    $color = $t->color ? $t->color : '#e2e8f0';
+                    $est_str = $format_hours($t->estimated_time);
+                    $spent_str = $format_hours($t->spent_hours);
+                    
+                    $html .= '<li class="list-group-item d-flex justify-content-between align-items-center" style="gap: 12px; flex-wrap: wrap;">';
+                    $html .= '<div style="flex: 1; min-width: 200px;">';
+                    $html .= '  <a href="#" data-act="ajax-modal" data-action-url="'.get_uri("tasks/view").'" data-post-id="'.$t->id.'" data-modal-lg="1" class="edit" style="font-weight: 500;">'.esc($t->title).'</a>';
+                    $html .= '  <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Est: ' . $est_str . ' | Spent: ' . $spent_str . '</div>';
+                    $html .= '</div>';
+                    $html .= '<span class="badge" style="background-color: '.$color.';">'.esc($t->status_title).'</span>';
+                    $html .= '</li>';
+                }
+                $html .= '</ul>';
+            }
+        } elseif ($category === 'spent') {
+            // Query all timesheet logs on tasks or project level
+            $sql = "SELECT pt.task_id, 
+                           SUM(TIMESTAMPDIFF(SECOND, pt.start_time, pt.end_time)) / 3600 AS spent_hours,
+                           t.title AS task_title, 
+                           ts.title AS status_title, 
+                           ts.color AS status_color
+                    FROM $timesheet_table pt
+                    LEFT JOIN $tasks_table t ON t.id = pt.task_id
+                    LEFT JOIN $task_status_table ts ON ts.id = t.status_id
+                    WHERE pt.project_id = $project_id
+                      AND pt.user_id = $user_id
+                      AND pt.deleted = 0
+                      AND pt.end_time IS NOT NULL
+                      AND pt.end_time != '0000-00-00 00:00:00'
+                    GROUP BY pt.task_id
+                    ORDER BY pt.task_id DESC";
+            
+            $logs = $db->query($sql)->getResult();
+
+            if (empty($logs)) {
+                $html = '<div class="p20 text-center color-secondary">No spent hours found.</div>';
+            } else {
+                $html .= '<ul class="list-group">';
+                foreach ($logs as $log) {
+                    $spent_str = $format_hours($log->spent_hours);
+                    $html .= '<li class="list-group-item d-flex justify-content-between align-items-center" style="gap: 12px; flex-wrap: wrap;">';
+                    
+                    if ($log->task_id > 0 && !empty($log->task_title)) {
+                        $color = $log->status_color ? $log->status_color : '#e2e8f0';
+                        $html .= '<div style="flex: 1; min-width: 200px;">';
+                        $html .= '  <a href="#" data-act="ajax-modal" data-action-url="'.get_uri("tasks/view").'" data-post-id="'.$log->task_id.'" data-modal-lg="1" class="edit" style="font-weight: 500;">'.esc($log->task_title).'</a>';
+                        $html .= '  <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Spent: ' . $spent_str . '</div>';
+                        $html .= '</div>';
+                        $html .= '<span class="badge" style="background-color: '.$color.';">'.esc($log->status_title).'</span>';
+                    } else {
+                        $html .= '<div style="flex: 1; min-width: 200px;">';
+                        $html .= '  <span style="color: #64748b; font-style: italic; font-weight: 500;">General project time (no specific task)</span>';
+                        $html .= '  <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Spent: ' . $spent_str . '</div>';
+                        $html .= '</div>';
+                        $html .= '<span class="badge" style="background-color: #cbd5e1; color: #475569;">Logged</span>';
+                    }
+                    
+                    $html .= '</li>';
+                }
+                $html .= '</ul>';
+            }
+        }
+
+        return $this->response->setJSON(['success' => true, 'html' => $html]);
+    }
+
     // ─── Resource Utilization ──────────────────────────────────────────────────
 
 
@@ -241,6 +419,7 @@ class Admin_dashboard extends Security_Controller
         $timesheet_table = $db->prefixTable('project_time');
         $users_table     = $db->prefixTable('users');
         $ps_table        = $db->prefixTable('project_status');
+        $task_status_table = $db->prefixTable('task_status');
 
         // Disable strict SQL mode for GROUP BY aggregations
         try { $db->query("SET sql_mode = ''"); } catch (\Exception $e) {}
@@ -281,14 +460,36 @@ class Admin_dashboard extends Security_Controller
             $user_map[(int)$u->id] = $u->full_name;
         }
 
-        // 4. All active projects (ordered by title)
+        // 4. All active projects with "Open" status (ordered by title)
         $projects = $db->query(
-            "SELECT p.id, p.title, ps.title AS status_label
+            "SELECT p.id, p.title, p.deadline AS project_deadline, ps.title AS status_label
              FROM $projects_table p
              LEFT JOIN $ps_table ps ON ps.id = p.status_id
-             WHERE p.deleted = 0
+             WHERE p.deleted = 0 AND ps.title = 'Open'
              ORDER BY p.title ASC"
         )->getResult();
+
+        // 5. Fetch max task deadlines per project per user
+        $deadline_rows = $db->query(
+            "SELECT t.project_id,
+                    t.assigned_to AS user_id,
+                    MAX(CASE WHEN ts.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed') THEN t.deadline END) AS active_task_deadline,
+                    MAX(t.deadline) AS all_task_deadline
+             FROM $tasks_table t
+             LEFT JOIN $task_status_table ts ON ts.id = t.status_id
+             WHERE t.deleted = 0
+               AND t.project_id > 0
+               AND t.assigned_to > 0
+             GROUP BY t.project_id, t.assigned_to"
+        )->getResult();
+
+        $deadlines_map = [];
+        foreach ($deadline_rows as $dr) {
+            $deadlines_map[(int)$dr->project_id][(int)$dr->user_id] = [
+                'active_task_deadline' => $dr->active_task_deadline,
+                'all_task_deadline'    => $dr->all_task_deadline,
+            ];
+        }
 
         // Build lookup maps  project_id → user_id → est/spent
         $est_map   = [];   // [project_id][user_id] = est_hours
@@ -319,12 +520,35 @@ class Admin_dashboard extends Security_Controller
                 $spent = round($spent_map[$pid][$uid] ?? 0, 2);
                 $rem   = round($est - $spent, 2);
 
+                // Determine engage_up_to date
+                $active_task_deadline = $deadlines_map[$pid][$uid]['active_task_deadline'] ?? null;
+                $all_task_deadline    = $deadlines_map[$pid][$uid]['all_task_deadline']    ?? null;
+                $project_deadline     = $proj->project_deadline ?? null;
+
+                $engage_date = null;
+                if (!empty($active_task_deadline) && $active_task_deadline !== '0000-00-00 00:00:00' && $active_task_deadline !== '0000-00-00') {
+                    $engage_date = $active_task_deadline;
+                } elseif (!empty($all_task_deadline) && $all_task_deadline !== '0000-00-00 00:00:00' && $all_task_deadline !== '0000-00-00') {
+                    $engage_date = $all_task_deadline;
+                } elseif (!empty($project_deadline) && $project_deadline !== '0000-00-00 00:00:00' && $project_deadline !== '0000-00-00') {
+                    $engage_date = $project_deadline;
+                }
+
+                $engage_str = '-';
+                if ($engage_date) {
+                    $clean_date = date('Y-m-d', strtotime($engage_date));
+                    if ($clean_date !== '1970-01-01' && $clean_date !== '0000-00-00') {
+                        $engage_str = format_to_date($engage_date, false);
+                    }
+                }
+
                 $members[] = [
-                    'user_id'   => $uid,
-                    'name'      => $user_map[$uid] ?? "User #$uid",
-                    'est'       => $est,
-                    'spent'     => $spent,
-                    'remaining' => $rem,
+                    'user_id'      => $uid,
+                    'name'         => $user_map[$uid] ?? "User #$uid",
+                    'est'          => $est,
+                    'spent'        => $spent,
+                    'remaining'    => $rem,
+                    'engage_up_to' => $engage_str,
                 ];
             }
 
@@ -343,6 +567,224 @@ class Admin_dashboard extends Security_Controller
             'projects' => $output,
             'total'    => count($output),
         ]);
+    }
+
+    public function get_staff_projects()
+    {
+        $this->access_only_team_members();
+        $db = \Config\Database::connect();
+
+        $projects_table        = $db->prefixTable('projects');
+        $project_members_table = $db->prefixTable('project_members');
+        $project_status_table  = $db->prefixTable('project_status');
+        $users_table           = $db->prefixTable('users');
+        $tasks_table           = $db->prefixTable('tasks');
+        $task_status_table     = $db->prefixTable('task_status');
+
+        $today = date('Y-m-d');
+
+        // 1. Group by project_id (All Assignments)
+        $sql = "SELECT pm.project_id, pm.user_id, p.title AS project_title, p.deadline AS project_deadline,
+                       CONCAT(u.first_name, ' ', u.last_name) AS member_name,
+                       u.job_title AS designation,
+                       (SELECT MAX(t.deadline) 
+                        FROM $tasks_table t 
+                        WHERE t.project_id = pm.project_id 
+                          AND t.assigned_to = pm.user_id 
+                          AND t.deleted = 0 
+                          AND t.status_id NOT IN (SELECT ts.id FROM $task_status_table ts WHERE ts.key_name IN ('done', 'completed', 'closed', 'qa_completed'))) AS active_task_deadline,
+                       (SELECT MAX(t.deadline) 
+                        FROM $tasks_table t 
+                        WHERE t.project_id = pm.project_id 
+                          AND t.assigned_to = pm.user_id 
+                          AND t.deleted = 0) AS all_task_deadline
+                FROM $project_members_table pm
+                JOIN $projects_table p ON p.id = pm.project_id
+                JOIN $project_status_table ps ON ps.id = p.status_id
+                JOIN $users_table u ON u.id = pm.user_id
+                WHERE pm.deleted = 0 
+                  AND p.deleted = 0 
+                  AND u.deleted = 0 
+                  AND u.user_type = 'staff' 
+                  AND ps.title = 'Open'
+                ORDER BY p.title ASC, member_name ASC";
+
+        $rows = $db->query($sql)->getResult();
+
+        // Group by project_id
+        $projects_map = [];
+        foreach ($rows as $row) {
+            $pid = (int)$row->project_id;
+            if (!isset($projects_map[$pid])) {
+                $projects_map[$pid] = [
+                    'project_id'    => $pid,
+                    'project_title' => $row->project_title,
+                    'members'       => []
+                ];
+            }
+
+            // Determine engage_up_to date
+            $engage_date = null;
+            if (!empty($row->active_task_deadline) && $row->active_task_deadline !== '0000-00-00 00:00:00' && $row->active_task_deadline !== '0000-00-00') {
+                $engage_date = $row->active_task_deadline;
+            } elseif (!empty($row->all_task_deadline) && $row->all_task_deadline !== '0000-00-00 00:00:00' && $row->all_task_deadline !== '0000-00-00') {
+                $engage_date = $row->all_task_deadline;
+            } elseif (!empty($row->project_deadline) && $row->project_deadline !== '0000-00-00 00:00:00' && $row->project_deadline !== '0000-00-00') {
+                $engage_date = $row->project_deadline;
+            }
+
+            $engage_str = '-';
+            if ($engage_date) {
+                $clean_date = date('Y-m-d', strtotime($engage_date));
+                if ($clean_date !== '1970-01-01' && $clean_date !== '0000-00-00') {
+                    $engage_str = format_to_date($engage_date, false);
+                }
+            }
+
+            $projects_map[$pid]['members'][] = [
+                'user_id'      => (int)$row->user_id,
+                'name'         => $row->member_name,
+                'designation'  => !empty($row->designation) ? $row->designation : '-',
+                'engage_up_to' => $engage_str
+            ];
+        }
+
+        // 2. Fetch Active and Inactive resources (grouped by staff)
+        $resources_sql = "SELECT u.id AS user_id, 
+                               CONCAT(u.first_name, ' ', u.last_name) AS member_name, 
+                               u.job_title AS designation,
+                               COUNT(DISTINCT CASE WHEN (t.id IS NOT NULL AND ts.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed') AND (t.deadline IS NULL OR t.deadline >= '$today')) THEN t.id END) AS active_tasks_count,
+                               MAX(CASE WHEN (t.id IS NOT NULL AND ts.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed') AND (t.deadline IS NOT NULL AND t.deadline != '0000-00-00 00:00:00' AND t.deadline >= '$today')) THEN t.deadline END) AS active_engage_up_to,
+                               GROUP_CONCAT(DISTINCT CASE WHEN (t.id IS NOT NULL AND ts.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed') AND (t.deadline IS NULL OR t.deadline >= '$today')) THEN p.title END SEPARATOR ', ') AS active_projects,
+                               (SELECT GROUP_CONCAT(DISTINCT p2.title SEPARATOR ', ') 
+                                FROM $project_members_table pm2
+                                JOIN $projects_table p2 ON p2.id = pm2.project_id
+                                JOIN $project_status_table ps2 ON ps2.id = p2.status_id
+                                WHERE pm2.deleted = 0 AND p2.deleted = 0 AND ps2.title = 'Open' AND pm2.user_id = u.id) AS member_projects
+                        FROM $users_table u
+                        LEFT JOIN $tasks_table t ON t.assigned_to = u.id AND t.deleted = 0 AND t.project_id IN (
+                            SELECT p3.id FROM $projects_table p3 
+                            JOIN $project_status_table ps3 ON ps3.id = p3.status_id 
+                            WHERE p3.deleted = 0 AND ps3.title = 'Open'
+                        )
+                        LEFT JOIN $task_status_table ts ON ts.id = t.status_id
+                        LEFT JOIN $projects_table p ON p.id = t.project_id
+                        WHERE u.deleted = 0 
+                          AND u.user_type = 'staff' 
+                          AND u.status = 'active'
+                        GROUP BY u.id
+                        ORDER BY member_name ASC";
+
+        $resource_rows = $db->query($resources_sql)->getResult();
+
+        $active_resources = [];
+        $inactive_resources = [];
+
+        foreach ($resource_rows as $row) {
+            $active_count = (int)$row->active_tasks_count;
+
+            if ($active_count > 0) {
+                $engage_str = '-';
+                if ($row->active_engage_up_to) {
+                    $clean_date = date('Y-m-d', strtotime($row->active_engage_up_to));
+                    if ($clean_date !== '1970-01-01' && $clean_date !== '0000-00-00') {
+                        $engage_str = format_to_date($row->active_engage_up_to, false);
+                    }
+                }
+
+                $active_resources[] = [
+                    'user_id'            => (int)$row->user_id,
+                    'name'               => $row->member_name,
+                    'designation'        => !empty($row->designation) ? $row->designation : '-',
+                    'active_tasks_count' => $active_count,
+                    'engage_up_to'       => $engage_str,
+                    'projects'           => !empty($row->active_projects) ? $row->active_projects : '-'
+                ];
+            } else {
+                $inactive_resources[] = [
+                    'user_id'     => (int)$row->user_id,
+                    'name'        => $row->member_name,
+                    'designation' => !empty($row->designation) ? $row->designation : '-',
+                    'projects'    => !empty($row->member_projects) ? $row->member_projects : '-'
+                ];
+            }
+        }
+
+        return $this->response->setJSON([
+            'projects'           => array_values($projects_map),
+            'active_resources'   => $active_resources,
+            'inactive_resources' => $inactive_resources,
+            'total'              => count($projects_map)
+        ]);
+    }
+
+    public function get_member_active_tasks()
+    {
+        $this->access_only_team_members();
+        $db = \Config\Database::connect();
+        
+        $user_id = (int)$this->request->getPost('user_id');
+        
+        $tasks_table        = $db->prefixTable('tasks');
+        $task_status_table  = $db->prefixTable('task_status');
+        $projects_table     = $db->prefixTable('projects');
+        $project_status_table = $db->prefixTable('project_status');
+        
+        $today = date('Y-m-d');
+        
+        $sql = "SELECT t.id, t.title, t.estimated_time, t.deadline, 
+                       ts.title AS status_title, ts.color, p.title AS project_title
+                FROM $tasks_table t
+                JOIN $projects_table p ON p.id = t.project_id
+                JOIN $project_status_table ps ON ps.id = p.status_id
+                LEFT JOIN $task_status_table ts ON ts.id = t.status_id
+                WHERE t.deleted = 0 
+                  AND t.assigned_to = $user_id 
+                  AND p.deleted = 0 
+                  AND ps.title = 'Open'
+                  AND ts.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed')
+                  AND (t.deadline IS NULL OR t.deadline >= '$today')
+                ORDER BY p.title ASC, t.deadline IS NULL ASC, t.deadline ASC";
+                
+        $tasks = $db->query($sql)->getResult();
+        
+        $format_hours = function($hours) {
+            if ($hours === null || $hours === '') return '0h 0m';
+            $hVal = (float)$hours;
+            $sign = $hVal < 0 ? '-' : '';
+            $hVal = abs($hVal);
+            $hours_int = floor($hVal);
+            $mins = round(($hVal - $hours_int) * 60);
+            if ($mins == 60) {
+                $hours_int += 1;
+                $mins = 0;
+            }
+            return "{$sign}{$hours_int}h {$mins}m";
+        };
+        
+        $html = '';
+        if (empty($tasks)) {
+            $html = '<div class="p20 text-center color-secondary">No active tasks found.</div>';
+        } else {
+            $html .= '<ul class="list-group">';
+            foreach ($tasks as $t) {
+                $color = $t->color ? $t->color : '#e2e8f0';
+                $est_str = $format_hours($t->estimated_time);
+                $deadline_str = !empty($t->deadline) && $t->deadline !== '0000-00-00' && $t->deadline !== '0000-00-00 00:00:00' ? format_to_date($t->deadline, false) : 'No deadline';
+                
+                $html .= '<li class="list-group-item d-flex justify-content-between align-items-center" style="gap: 12px; flex-wrap: wrap;">';
+                $html .= '<div style="flex: 1; min-width: 200px;">';
+                $html .= '  <div style="font-size: 10px; color: #6366f1; font-weight: 600; text-transform: uppercase; margin-bottom: 2px;">'.esc($t->project_title).'</div>';
+                $html .= '  <a href="#" data-act="ajax-modal" data-action-url="'.get_uri("tasks/view").'" data-post-id="'.$t->id.'" data-modal-lg="1" class="edit" style="font-weight: 500; font-size:12.5px;">'.esc($t->title).'</a>';
+                $html .= '  <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Est: ' . $est_str . ' | Deadline: ' . $deadline_str . '</div>';
+                $html .= '</div>';
+                $html .= '<span class="badge" style="background-color: '.$color.';">'.esc($t->status_title).'</span>';
+                $html .= '</li>';
+            }
+            $html .= '</ul>';
+        }
+        
+        return $this->response->setJSON(['success' => true, 'html' => $html]);
     }
 
     // ─── Helper: ensure override table exists ──────────────────────────────────

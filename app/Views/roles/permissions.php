@@ -78,6 +78,12 @@
                             </div>
                             <div>
                                 <?php
+                                echo form_checkbox("can_create_sub_tasks", "1", $can_create_sub_tasks ? true : false, "id='can_create_sub_tasks' class='form-check-input'");
+                                ?>
+                                <label for="can_create_sub_tasks"><?php echo app_lang("can_create_sub_tasks"); ?></label>
+                            </div>
+                            <div>
+                                <?php
                                 echo form_checkbox("can_edit_tasks", "1", $can_edit_tasks ? true : false, "id='can_edit_tasks' class='form-check-input'");
                                 ?>
                                 <label for="can_edit_tasks"><?php echo app_lang("can_edit_tasks"); ?></label>

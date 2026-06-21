@@ -229,6 +229,54 @@ class Tasks extends Security_Controller {
         }
     }
 
+    private function can_create_sub_tasks($_context = null) {
+        $context_data = $this->get_context_and_id();
+        $context = $_context ? $_context : $context_data["context"];
+        $context_id = $context_data["id"];
+
+        if ($this->login_user->user_type != "staff") {
+            return $this->_client_can_create_tasks($context, $context_id);
+        }
+
+        if ($this->login_user->is_admin) {
+            return true;
+        }
+
+        if ($context == "general") {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "project" && $this->has_all_projects_restricted_role()) {
+            return false;
+        } else if ($context == "project" && $this->can_manage_all_projects()) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "project" && $this->_user_has_project_sub_task_creation_permission() && $context_id && $this->_is_user_a_project_member($context_id)) {
+            return true;
+        } else if ($context == "project" && $this->_user_has_project_sub_task_creation_permission() && !$context_id) {
+            return true;
+        } else if ($context == "client" && $this->_can_edit_clients($context_id)) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "lead" && $this->_can_access_this_lead($context_id)) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "invoice" && $this->can_edit_invoices()) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "estimate" && $this->_can_access_this_estimate($context_id)) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "order" && get_array_value($this->login_user->permissions, "order")) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "contract" && get_array_value($this->login_user->permissions, "contract")) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "proposal" && get_array_value($this->login_user->permissions, "proposal")) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "subscription" && $this->_can_edit_subscriptions($context_id)) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "expense" && $this->can_access_expenses()) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        } else if ($context == "ticket" && $this->_can_edit_tickets($context_id)) {
+            return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
+        }
+
+        return false;
+    }
+
     private function _is_clients_project($project_id) {
         //this method will be used a lot in loop. To reduce db call, save the value in memory. 
         $is_client_project = get_array_value($this->project_client_memory, $project_id);
@@ -482,6 +530,10 @@ class Tasks extends Security_Controller {
 
     private function _user_has_project_task_creation_permission() {
         return get_array_value($this->login_user->permissions, "can_create_tasks") == "1";
+    }
+
+    private function _user_has_project_sub_task_creation_permission() {
+        return get_array_value($this->login_user->permissions, "can_create_sub_tasks") == "1";
     }
 
     private function _user_has_project_task_edit_permission() {
@@ -1860,7 +1912,7 @@ class Tasks extends Security_Controller {
 
         $view_data['project_id'] = $model_info->project_id;
 
-        $view_data['can_create_tasks'] = $this->can_create_tasks($model_info->context); //for sub task cration. context should be same. 
+        $view_data['can_create_sub_tasks'] = $this->can_create_sub_tasks($model_info->context); //for sub task cration. context should be same. 
 
         $view_data['parent_task_title'] = $this->Tasks_model->get_one($model_info->parent_task_id)->title;
 
@@ -2807,7 +2859,7 @@ class Tasks extends Security_Controller {
             "parent_task_id" => "required|numeric"
         ));
 
-        if (!$this->can_create_tasks($context)) {
+        if (!$this->can_create_sub_tasks($context)) {
             app_redirect("forbidden");
         }
 
