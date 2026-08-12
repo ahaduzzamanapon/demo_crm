@@ -131,7 +131,7 @@
                 <li class="nav-item"><a class="nav-link" href="#effort-report" data-bs-toggle="tab"><i
                             data-feather="bar-chart-2" class="icon-16"></i> Project Wise Effort</a></li>
                 <li class="nav-item"><a class="nav-link" href="#aging-report" data-bs-toggle="tab" id="aging-report-tab"><i
-                            data-feather="alert-circle" class="icon-16"></i> Task Aging Report</a></li>
+                            data-feather="alert-circle" class="icon-16"></i>Task Projection and Aging Report</a></li>
             </ul>
             <div class="tab-content">
                 <div role="tabpanel" class="tab-pane fade show active" id="project-report">
@@ -210,9 +210,9 @@
                                             <?php $current_assignee = $item->assignee_name;
                                         } ?>
                                         <td><?php echo $item->project_name; ?></td>
-                                        <td><?php echo number_format($estimated_hr, 2); ?></td>
-                                        <td><?php echo number_format($spent_hr, 2); ?></td>
-                                        <td><?php echo number_format($remaining_hr, 2); ?></td>
+                                        <td><?php echo clean_hours_format($estimated_hr); ?></td>
+                                        <td><?php echo clean_hours_format($spent_hr); ?></td>
+                                        <td><?php echo clean_hours_format($remaining_hr); ?></td>
                                     </tr>
                                 <?php } ?>
                             </tbody>
@@ -389,8 +389,8 @@
                                         $est_s = $task['estimated_hr'] * 3600;
                                         $spent_s = $task['total_spent_seconds'];
                                         $remaining_s = $est_s - $spent_s;
-                                        $spent_fmt = convert_seconds_to_time_format($spent_s);
-                                        $remaining_fmt = convert_seconds_to_time_format($remaining_s);
+                                        $spent_fmt = clean_seconds_to_hours_format($spent_s);
+                                        $remaining_fmt = clean_seconds_to_hours_format($remaining_s);
                                         if ($remaining_s < 0) $remaining_fmt .= '&nbsp;(+)';
                                         $rowCount = count($task['logs']);
                                         $firstLog = true;
@@ -408,7 +408,7 @@
                                             <td><?php echo $task_name; ?></td>
 
                                             <?php if ($firstLog) : ?>
-                                                <td rowspan="<?php echo $rowCount; ?>"><?php echo $task['estimated_hr']; ?></td>
+                                                <td rowspan="<?php echo $rowCount; ?>"><?php echo clean_hours_format($task['estimated_hr']); ?></td>
                                                 <td rowspan="<?php echo $rowCount; ?>"><?php echo $spent_fmt; ?></td>
                                                 <td rowspan="<?php echo $rowCount; ?>"><?php echo $remaining_fmt; ?></td>
                                             <?php endif; ?>
@@ -424,9 +424,9 @@
                                         <td colspan="4" class="text-end">
                                             Total for <strong><?php echo $project_name; ?></strong>:
                                         </td>
-                                        <td><?php echo convert_seconds_to_time_format($proj_est_s); ?></td>
-                                        <td><?php echo convert_seconds_to_time_format($proj_spent_s); ?></td>
-                                        <td><?php echo convert_seconds_to_time_format($proj_remaining_s); ?></td>
+                                        <td><?php echo clean_seconds_to_hours_format($proj_est_s); ?></td>
+                                        <td><?php echo clean_seconds_to_hours_format($proj_spent_s); ?></td>
+                                        <td><?php echo clean_seconds_to_hours_format($proj_remaining_s); ?></td>
                                     </tr>
                                     <?php
                                     $projNo++;
@@ -439,9 +439,9 @@
                                         <td colspan="4" class="text-end">
                                             🏁 Grand Total for <strong><?php echo $member_name; ?></strong>:
                                         </td>
-                                        <td><?php echo convert_seconds_to_time_format($grand_estimated_s); ?></td>
-                                        <td><?php echo convert_seconds_to_time_format($grand_spent_s); ?></td>
-                                        <td><?php echo convert_seconds_to_time_format($grand_remaining_s); ?></td>
+                                        <td><?php echo clean_seconds_to_hours_format($grand_estimated_s); ?></td>
+                                        <td><?php echo clean_seconds_to_hours_format($grand_spent_s); ?></td>
+                                        <td><?php echo clean_seconds_to_hours_format($grand_remaining_s); ?></td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -819,15 +819,15 @@
                                         <td class="sc sc-2"><?php echo htmlspecialchars($ep->project_name); ?></td>
                                         <td class="sc sc-3"><?php echo $type_label; ?></td>
                                         <td class="sc sc-4 <?php echo $due < 0 ? 'neg' : 'pos'; ?>">
-                                            <?php echo $due < 0 ? '(' . number_format(abs($due), 2) . ')' : number_format($due, 2); ?>
+                                            <?php echo $due < 0 ? '(' . clean_hours_format(abs($due)) . ')' : clean_hours_format($due); ?>
                                         </td>
-                                        <td class="sc sc-5"><?php echo $est > 0 ? number_format($est, 2) : '-'; ?></td>
-                                        <td class="sc sc-6"><?php echo $prec > 0 ? number_format($prec, 2) : '-'; ?></td>
-                                        <td class="sc sc-7 sc-shadow"><?php echo $curr > 0 ? number_format($curr, 2) : '-'; ?></td>
+                                        <td class="sc sc-5"><?php echo $est > 0 ? clean_hours_format($est) : '-'; ?></td>
+                                        <td class="sc sc-6"><?php echo $prec > 0 ? clean_hours_format($prec) : '-'; ?></td>
+                                        <td class="sc sc-7 sc-shadow"><?php echo $curr > 0 ? clean_hours_format($curr) : '-'; ?></td>
                                         <?php foreach ($effort_staff as $es):
                                             if (($eff_member_totals[$es->id] ?? 0) == 0) continue;
                                             $mh = $effort_member_hours[$ep->project_id][$es->id] ?? 0; ?>
-                                            <td class="member-col"><?php echo $mh > 0 ? number_format($mh, 2) : '-'; ?></td>
+                                            <td class="member-col"><?php echo $mh > 0 ? clean_hours_format($mh) : '-'; ?></td>
                                         <?php endforeach; ?>
                                     </tr>
                                 <?php endforeach; ?>
@@ -839,15 +839,15 @@
                                         <td class="sc sc-2" style="text-align:left;"></td>
                                         <td class="sc sc-3"></td>
                                         <td class="sc sc-4 <?php echo $eff_total_due < 0 ? 'neg' : 'pos'; ?>">
-                                            <?php echo $eff_total_due < 0 ? '(' . number_format(abs($eff_total_due), 2) . ')' : number_format($eff_total_due, 2); ?>
-                                        </td>
-                                        <td class="sc sc-5"><?php echo number_format($eff_total_est, 2); ?></td>
-                                        <td class="sc sc-6"><?php echo number_format($eff_total_preceding, 2); ?></td>
-                                        <td class="sc sc-7 sc-shadow"><?php echo number_format($eff_total_current, 2); ?></td>
-                                        <?php foreach ($effort_staff as $es):
-                                            if (($eff_member_totals[$es->id] ?? 0) == 0) continue; ?>
-                                            <td class="member-col"><?php echo number_format($eff_member_totals[$es->id], 2); ?></td>
-                                        <?php endforeach; ?>
+                                             <?php echo $eff_total_due < 0 ? '(' . clean_hours_format(abs($eff_total_due)) . ')' : clean_hours_format($eff_total_due); ?>
+                                         </td>
+                                         <td class="sc sc-5"><?php echo clean_hours_format($eff_total_est); ?></td>
+                                         <td class="sc sc-6"><?php echo clean_hours_format($eff_total_preceding); ?></td>
+                                         <td class="sc sc-7 sc-shadow"><?php echo clean_hours_format($eff_total_current); ?></td>
+                                         <?php foreach ($effort_staff as $es):
+                                             if (($eff_member_totals[$es->id] ?? 0) == 0) continue; ?>
+                                             <td class="member-col"><?php echo clean_hours_format($eff_member_totals[$es->id]); ?></td>
+                                         <?php endforeach; ?>
                                     </tr>
                                     <!-- Utilization Row -->
                                     <tr class="util-row">

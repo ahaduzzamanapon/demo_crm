@@ -46,18 +46,18 @@
                     <?php echo strtoupper(substr($effort_row->project_type ?? 'E', 0, 1)); ?>
                 </span>
             </td>
-            <td><?php echo number_format($effort_row->estimated_hours, 2); ?></td>
-            <td style="color:#64748b;"><?php echo number_format($effort_row->preceding_hours, 2); ?></td>
+            <td><?php echo clean_hours_format($effort_row->estimated_hours); ?></td>
+            <td style="color:#64748b;"><?php echo clean_hours_format($effort_row->preceding_hours); ?></td>
             <td>
                 <strong style="color:<?php echo $effort_row->current_hours > 0 ? '#16a34a' : '#94a3b8'; ?>;">
-                    <?php echo number_format($effort_row->current_hours, 2); ?>
+                    <?php echo clean_hours_format($effort_row->current_hours); ?>
                 </strong>
             </td>
             <?php foreach ($effort_staff as $s):
                 $mh = $member_hours[$s->id] ?? 0;
             ?>
             <td style="color:<?php echo $mh > 0 ? '#1e3a8a' : '#94a3b8'; ?>; font-weight:<?php echo $mh > 0 ? '600' : '400'; ?>;">
-                <?php echo $mh > 0 ? number_format($mh, 2) : '—'; ?>
+                <?php echo $mh > 0 ? clean_hours_format($mh) : '—'; ?>
             </td>
             <?php endforeach; ?>
         </tr>
@@ -118,11 +118,11 @@
                 </span>
                 <?php endforeach; else: echo '<span class="text-muted">—</span>'; endif; ?>
             </td>
-            <td class="text-center"><?php echo $est > 0 ? number_format($est, 2) : '—'; ?></td>
+            <td class="text-center"><?php echo $est > 0 ? clean_hours_format($est) : '—'; ?></td>
             <td class="text-center">
                 <?php if ($logged > 0): ?>
                     <span style="<?php echo $over ? 'color:#dc2626;font-weight:700;' : ''; ?>">
-                        <?php echo number_format($logged, 2); ?>
+                        <?php echo clean_hours_format($logged); ?>
                     </span>
                 <?php else: echo '—'; endif; ?>
             </td>

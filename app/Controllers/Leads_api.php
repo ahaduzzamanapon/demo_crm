@@ -142,7 +142,7 @@ class Leads_api extends Controller {
                     $note_id = $this->Notes_model->ci_save($note_data);
                 }
 
-                log_notification("lead_created", array("lead_id" => $lead_id), "0"); // 0 for system or external
+                // log_notification("lead_created", array("lead_id" => $lead_id), "0"); // 0 for system or external
 
                 echo json_encode(array("success" => true, 'message' => 'Created', 'id' => $lead_id, 'contact_id' => $contact_id, 'note_id' => $note_id));
             } else {
@@ -262,31 +262,118 @@ class Leads_api extends Controller {
              $status_id = $this->request->getPost('status'); // Assuming ID is passed
              $remarks = $this->request->getPost('remarks');
              $feedback = $this->request->getPost('feedback'); 
-             $owner_email = $this->request->getPost('owner_email'); // For note creator
+             $owner_email = $this->request->getPost('owner_email');
+             $company_name = $this->request->getPost('client_name');
+             $contact_person = $this->request->getPost('contact_person');
+             $email = $this->request->getPost('contact_email');
+             $phone = $this->request->getPost('contact_phone');
+             $job_title = $this->request->getPost('contact_job_title');
 
-             // Update Lead Status
-             $lead_data = ['lead_status_id' => $status_id];
-             $this->Clients_model->ci_save($lead_data, $lead_id);
+             // Lookup lead owner if owner_email is provided
+             $owner_id = 0;
+             if ($owner_email) {
+                 $owner_user = $this->Users_model->get_one_where(array("email" => $owner_email, "deleted" => 0, "status" => "active", "user_type" => "staff"));
+                 if ($owner_user->id) {
+                     $owner_id = $owner_user->id;
+                 }
+             }
+
+             // Update Lead Status and Details
+             $lead_data = [];
+
+             // Check if status_id is a valid lead status in CRM
+             if ($status_id) {
+                 $status_exists = $this->Lead_status_model->get_one($status_id);
+                 if ($status_exists->id) {
+                     $lead_data['lead_status_id'] = $status_id;
+                 }
+             }
+
+             if ($company_name !== null && trim($company_name) !== "") {
+                 $lead_data["company_name"] = $company_name;
+             }
+             if ($phone !== null && trim($phone) !== "") {
+                 $lead_data["phone"] = $phone;
+             }
+             if ($owner_id) {
+                 $lead_data["owner_id"] = $owner_id;
+             }
+
+             if (!empty($lead_data)) {
+                 $this->Clients_model->ci_save($lead_data, $lead_id);
+             }
+
+             // Parse contact person's name
+             $first_name = "";
+             $last_name = "";
+             if ($contact_person !== null && trim($contact_person) !== "") {
+                 $parts = explode(" ", $contact_person, 2);
+                 $first_name = $parts[0];
+                 $last_name = isset($parts[1]) ? $parts[1] : "";
+             }
+
+             // Update or create Lead primary contact details
+             $primary_contact_id = $this->Clients_model->get_primary_contact($lead_id);
+             if ($primary_contact_id) {
+                 $contact_data = array();
+                 if ($contact_person !== null && trim($contact_person) !== "") {
+                     $contact_data["first_name"] = $first_name;
+                     $contact_data["last_name"] = $last_name;
+                 }
+                 if ($email !== null && trim($email) !== "") {
+                     $contact_data["email"] = trim($email);
+                 }
+                 if ($phone !== null && trim($phone) !== "") {
+                     $contact_data["phone"] = $phone;
+                 }
+                 if ($job_title !== null && trim($job_title) !== "") {
+                     $contact_data["job_title"] = $job_title;
+                 }
+
+                 if (!empty($contact_data)) {
+                     $this->Users_model->ci_save($contact_data, $primary_contact_id);
+                 }
+             } else {
+                 if (($contact_person !== null && trim($contact_person) !== "") || 
+                     ($email !== null && trim($email) !== "") || 
+                     ($phone !== null && trim($phone) !== "") || 
+                     ($job_title !== null && trim($job_title) !== "")) {
+                     $contact_data = array(
+                         "first_name" => $first_name ? $first_name : "",
+                         "last_name" => $last_name ? $last_name : "",
+                         "client_id" => $lead_id,
+                         "user_type" => "lead",
+                         "email" => $email ? trim($email) : "",
+                         "phone" => $phone ? $phone : "",
+                         "job_title" => $job_title ? $job_title : "",
+                         "created_at" => get_current_utc_time(),
+                         "is_primary_contact" => 1
+                     );
+                     $this->Users_model->ci_save($contact_data);
+                 }
+             }
              
              // Add Note
-             if($remarks || $feedback) {
+             if ($remarks || $feedback) {
                  $note_content = trim(($remarks ? "Meeting Remarks: " . $remarks . "\n" : "") . ($feedback ? "Feedback: " . $feedback : ""));
                  
-                 $creator_id = 0; // System default
-                 if($owner_email) {
+                 $creator_id = $owner_id;
+                 if (!$creator_id && $owner_email) {
                      $owner = $this->Users_model->get_one_where(array("email" => $owner_email));
-                     if($owner->id) $creator_id = $owner->id;
+                     if ($owner->id) {
+                         $creator_id = $owner->id;
+                     }
                  }
 
                  $note_data = array(
-                    "title" => "Meeting Feedback",
-                    "description" => $note_content,
-                    "created_by" => $creator_id,
-                    "created_at" => get_current_utc_time(),
-                    "client_id" => $lead_id,
-                    "is_public" => 0
-                );
-                $this->Notes_model->ci_save($note_data);
+                     "title" => "Meeting Feedback",
+                     "description" => $note_content,
+                     "created_by" => $creator_id,
+                     "created_at" => get_current_utc_time(),
+                     "client_id" => $lead_id,
+                     "is_public" => 0
+                 );
+                 $this->Notes_model->ci_save($note_data);
              }
              
              echo json_encode(array("success" => true, 'message' => 'Lead status updated'));

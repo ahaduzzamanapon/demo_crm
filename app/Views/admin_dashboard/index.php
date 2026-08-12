@@ -25,7 +25,7 @@
                     <li class="nav-item" role="presentation">
                         <a class="nav-link" id="tab-staff-projects" data-bs-toggle="tab" href="#staff-projects" role="tab" aria-controls="staff-projects" aria-selected="false">
                             <i data-feather="briefcase" class="icon-16 mr5"></i>
-                            Staff-wise Projects
+                            Resource-wise Projects
                         </a>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -38,6 +38,12 @@
                         <a class="nav-link" id="tab-employee-performance" data-bs-toggle="tab" href="#employee-performance" role="tab" aria-controls="employee-performance" aria-selected="false">
                             <i data-feather="trending-up" class="icon-16 mr5"></i>
                             Date Wise Employee Performance Report
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="tab-daily-project-update" data-bs-toggle="tab" href="#daily-project-update" role="tab" aria-controls="daily-project-update" aria-selected="false">
+                            <i data-feather="calendar" class="icon-16 mr5"></i>
+                            Daily Project Update
                         </a>
                     </li>
                 </ul>
@@ -227,15 +233,15 @@
                         </div>
                     </div>
 
-                    <!-- Tab 5: Staff-wise Projects -->
+                    <!-- Tab 5: Resource-wise Projects -->
                     <div class="tab-pane fade" id="staff-projects" role="tabpanel" aria-labelledby="tab-staff-projects">
                         <div class="admin-tab-inner" id="sp-tab-inner">
 
                             <!-- Header -->
                             <div class="ru-header-row" style="border-bottom: none; padding-bottom: 5px;">
                                 <div>
-                                    <h3 class="ru-main-title">Staff-wise Projects</h3>
-                                    <p class="ru-subtitle">Active projects grouped by project and showing assigned staff members</p>
+                                    <h3 class="ru-main-title">Resource-wise Projects</h3>
+                                    <p class="ru-subtitle">Active projects grouped by project and showing assigned resources</p>
                                 </div>
                             </div>
 
@@ -250,7 +256,7 @@
                             <div class="tab-search-bar">
                                 <div class="tab-search-wrap" style="max-width:400px;">
                                     <svg class="tab-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                                    <input type="text" id="sp-search" class="tab-search-input" placeholder="Search staff, designation or project…" autocomplete="off">
+                                    <input type="text" id="sp-search" class="tab-search-input" placeholder="Search resource, designation or project…" autocomplete="off">
                                     <button id="sp-search-clear" class="tab-search-clear" style="display:none;" title="Clear">&times;</button>
                                 </div>
                                 <span id="sp-count" class="tab-search-count"></span>
@@ -310,6 +316,7 @@
                                                 <th>Name</th>
                                                 <th>Designation</th>
                                                 <th>Status</th>
+                                                <th>Last Engagement</th>
                                                 <th>Projects</th>
                                             </tr>
                                         </thead>
@@ -360,6 +367,60 @@
 
                             <!-- Report output -->
                             <div id="perf-output"></div>
+
+                        </div>
+                    </div>
+
+                    <!-- Tab 6: Daily Project Update -->
+                    <div class="tab-pane fade" id="daily-project-update" role="tabpanel" aria-labelledby="tab-daily-project-update">
+                        <div class="admin-tab-inner" id="dpu-tab-inner">
+
+                            <!-- Header -->
+                            <div class="ru-header-row" style="border-bottom: none; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; padding-right: 24px;">
+                                <div>
+                                    <h3 class="ru-main-title">Daily Project Update</h3>
+                                    <p class="ru-subtitle">Track and manage daily project status updates, challenges, and priorities</p>
+                                </div>
+                            </div>
+
+                            <!-- Date Picker Filter -->
+                            <div class="tab-search-bar" style="display: flex; align-items: center; gap: 15px; background: #fafafa; border-bottom: 1px solid #e2e8f0; padding: 12px 24px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 13px; font-weight: 600; color: #475569;">For Date:</span>
+                                    <input type="text" id="dpu_report_date" class="form-control" style="width: 150px; display: inline-block; padding: 6px 12px; height: 34px;" value="<?php echo format_to_date(date('Y-m-d')); ?>" />
+                                </div>
+                            </div>
+
+                            <!-- Loading State -->
+                            <div id="dpu-loading" class="ru-loading-state" style="display:none; padding: 40px; text-align: center;">
+                                <div class="ru-spinner" style="margin: 0 auto 10px;"></div>
+                                <span>Loading daily project updates…</span>
+                            </div>
+
+                            <!-- Content -->
+                            <div id="dpu-content" style="padding:20px;">
+                                <div class="table-responsive" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden;">
+                                    <table class="table table-bordered dpu-table" style="margin-bottom:0; font-size: 13px; table-layout: fixed; width: 100%;">
+                                        <thead style="background: #f8fafc; color: #1e293b; font-weight: 600;">
+                                            <tr>
+                                                <th style="width: 50px; text-align: center;">SL</th>
+                                                <th style="width: 150px;">Project</th>
+                                                <th style="width: 250px;">Tasks</th>
+                                                <th style="width: 110px; text-align: center;">Status</th>
+                                                <th style="width: 150px;">Next Action</th>
+                                                <th style="width: 150px;">Key Milestone</th>
+                                                <th style="width: 200px;">Address Challenges</th>
+                                                <th style="width: 150px;">Solution</th>
+                                                <th style="width: 150px;">Upcoming Priorities</th>
+                                                <th style="width: 120px;">Remarks</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dpu-table-body">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
 
                         </div>
                     </div>
@@ -1994,6 +2055,13 @@ function markPerfOverride(userId, reportDate, overrideType) {
 <script type="text/javascript">
 /* ── Shared live-search for Project Progress & Resource Utilization tabs ── */
 (function() {
+    function matchQuery(text, query) {
+        if (!query) return true;
+        var cleanText = String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        var cleanQuery = String(query || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cleanText.indexOf(cleanQuery) !== -1;
+    }
+
     function initTabSearch(inputId, clearId, listId, countId, cardClass) {
         var input = document.getElementById(inputId);
         var clearBtn = document.getElementById(clearId);
@@ -2026,24 +2094,33 @@ function markPerfOverride(userId, reportDate, overrideType) {
             }
 
             function doFilter() {
-                var q = input.value.trim().toLowerCase();
+                var q = input.value.trim();
                 var list = document.getElementById(listId);
                 if (!list) return;
                 var cards = list.querySelectorAll('.' + cardClass);
                 var visible = 0;
                 cards.forEach(function(card) {
-                    var searchText = (card.getAttribute('data-search') || card.getAttribute('data-title') || '').toLowerCase();
-                    var match = true;
-                    // Match all tags (AND search)
-                    ruTags.forEach(function(tag) {
-                        if (searchText.indexOf(tag) === -1) {
-                            match = false;
+                    var searchText = (card.getAttribute('data-search') || card.getAttribute('data-title') || '');
+                    
+                    // Match any tag (OR logic)
+                    var tagMatch = true;
+                    if (ruTags.length > 0) {
+                        tagMatch = false;
+                        for (var i = 0; i < ruTags.length; i++) {
+                            if (matchQuery(searchText, ruTags[i])) {
+                                tagMatch = true;
+                                break;
+                            }
                         }
-                    });
-                    // Match current text input
-                    if (q && searchText.indexOf(q) === -1) {
-                        match = false;
                     }
+
+                    // Match current text input (AND logic with the tags match)
+                    var textMatch = true;
+                    if (q) {
+                        textMatch = matchQuery(searchText, q);
+                    }
+
+                    var match = tagMatch && textMatch;
                     card.classList.toggle('pp-hidden', !match);
                     if (match) visible++;
                 });
@@ -2107,14 +2184,14 @@ function markPerfOverride(userId, reportDate, overrideType) {
         }
 
         function doFilter() {
-            var q = input.value.trim().toLowerCase();
+            var q = input.value.trim();
             var list = document.getElementById(listId);
             if (!list) return;
             var cards = list.querySelectorAll('.' + cardClass);
             var visible = 0;
             cards.forEach(function(card) {
-                var searchText = (card.getAttribute('data-search') || card.getAttribute('data-title') || '').toLowerCase();
-                var show = !q || searchText.indexOf(q) !== -1;
+                var searchText = (card.getAttribute('data-search') || card.getAttribute('data-title') || '');
+                var show = !q || matchQuery(searchText, q);
                 card.classList.toggle('pp-hidden', !show);
                 if (show) visible++;
             });
@@ -2295,6 +2372,22 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
         var html = '';
         members.forEach(function(m, idx) {
             var eName = esc(m.name).replace(/'/g, "\\'");
+            
+            var projectsHtml = '';
+            if (m.projects && m.projects !== '-') {
+                var pList = m.projects.split(', ');
+                var pTags = pList.map(function(p) {
+                    if (m.engage_project && p.trim() === m.engage_project.trim()) {
+                        return '<span class="badge bg-warning text-dark" style="font-size: 11px; font-weight: 700; padding: 4px 8px; border: 1px solid #f59e0b;">' + esc(p) + '</span>';
+                    } else {
+                        return esc(p);
+                    }
+                });
+                projectsHtml = pTags.join(', ');
+            } else {
+                projectsHtml = '-';
+            }
+
             html += '<tr>'
                 + '<td class="text-center">' + (idx + 1) + '</td>'
                 + '<td><strong>' + esc(m.name) + '</strong></td>'
@@ -2303,7 +2396,7 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
                 + '  <span class="badge bg-success" style="font-size:11px;">' + m.active_tasks_count + ' active task' + (m.active_tasks_count !== 1 ? 's' : '') + '</span>'
                 + '</td>'
                 + '<td>' + esc(m.engage_up_to) + '</td>'
-                + '<td>' + esc(m.projects) + '</td>'
+                + '<td>' + projectsHtml + '</td>'
                 + '</tr>';
         });
 
@@ -2319,7 +2412,7 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
         if (!tbody) return;
 
         if (!members || members.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:#94a3b8;">No inactive resources found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;text-align:center;color:#94a3b8;">No inactive resources found.</td></tr>';
             if (countEl) countEl.textContent = '0 inactive resources';
             return;
         }
@@ -2335,6 +2428,7 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
                 + '<td><strong>' + esc(m.name) + '</strong></td>'
                 + '<td>' + esc(m.designation) + '</td>'
                 + '<td>' + statusHtml + '</td>'
+                + '<td>' + esc(m.last_engagement) + '</td>'
                 + '<td>' + esc(m.projects) + '</td>'
                 + '</tr>';
         });
@@ -2376,10 +2470,17 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
         });
     };
 
+    function matchQuery(text, query) {
+        if (!query) return true;
+        var cleanText = String(text || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        var cleanQuery = String(query || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cleanText.indexOf(cleanQuery) !== -1;
+    }
+
     function applySPFilter() {
         var searchInput = document.getElementById('sp-search');
         if (!searchInput) return;
-        var q = searchInput.value.trim().toLowerCase();
+        var q = searchInput.value.trim();
         var clearBtn = document.getElementById('sp-search-clear');
         if (clearBtn) clearBtn.style.display = q ? 'inline' : 'none';
 
@@ -2390,9 +2491,9 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
             }
             var filtered = [];
             spRawData.forEach(function(proj) {
-                var matchProject = proj.project_title.toLowerCase().indexOf(q) !== -1;
+                var matchProject = matchQuery(proj.project_title, q);
                 var matchedMembers = proj.members.filter(function(m) {
-                    return m.name.toLowerCase().indexOf(q) !== -1 || m.designation.toLowerCase().indexOf(q) !== -1;
+                    return matchQuery(m.name, q) || matchQuery(m.designation, q);
                 });
 
                 if (matchProject) {
@@ -2409,9 +2510,9 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
                 return;
             }
             var filtered = spActiveData.filter(function(m) {
-                return m.name.toLowerCase().indexOf(q) !== -1 || 
-                       m.designation.toLowerCase().indexOf(q) !== -1 ||
-                       m.projects.toLowerCase().indexOf(q) !== -1;
+                return matchQuery(m.name, q) || 
+                       matchQuery(m.designation, q) ||
+                       matchQuery(m.projects, q);
             });
             renderActiveResources(filtered);
         } else if (currentSPView === 'inactive') {
@@ -2420,9 +2521,9 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
                 return;
             }
             var filtered = spInactiveData.filter(function(m) {
-                return m.name.toLowerCase().indexOf(q) !== -1 || 
-                       m.designation.toLowerCase().indexOf(q) !== -1 ||
-                       m.projects.toLowerCase().indexOf(q) !== -1;
+                return matchQuery(m.name, q) || 
+                       matchQuery(m.designation, q) ||
+                       matchQuery(m.projects, q);
             });
             renderInactiveResources(filtered);
         }
@@ -2458,6 +2559,82 @@ window.openPPTasksModal = function(projectId, category, projectTitle) {
             });
         }
     });
+})();
+
+// Daily Project Update Tab
+(function() {
+    var dpuLoaded = false;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var tabLink = document.getElementById('tab-daily-project-update');
+        if (tabLink) {
+            tabLink.addEventListener('shown.bs.tab', function() {
+                if (dpuLoaded) return;
+                dpuLoaded = true;
+                if (typeof setDatePicker === "function") {
+                    setDatePicker("#dpu_report_date");
+                }
+                loadDPUTable();
+            });
+        }
+
+        $("#dpu_report_date").on("change", function() {
+            loadDPUTable();
+        });
+    });
+
+    window.loadDPUTable = function() {
+        var date = $("#dpu_report_date").val();
+        if (!date) return;
+
+        $("#dpu-loading").show();
+        $("#dpu-content").hide();
+
+        $.ajax({
+            url: "<?php echo get_uri('daily_project_updates/get_updates'); ?>",
+            type: "POST",
+            data: { date: date },
+            dataType: "json",
+            success: function(result) {
+                $("#dpu-loading").hide();
+                $("#dpu-content").show();
+
+                if (result.success) {
+                    var tbody = $("#dpu-table-body");
+                    tbody.empty();
+
+                    if (result.data && result.data.length > 0) {
+                        result.data.forEach(function(row) {
+                            var tr = $("<tr></tr>");
+                            tr.append('<td class="text-center">' + row.sl + '</td>');
+                            tr.append('<td>' + row.project_title + '</td>');
+                            tr.append('<td style="word-wrap: break-word; white-space: normal;">' + row.tasks + '</td>');
+                            tr.append('<td class="text-center">' + row.status + '</td>');
+                            tr.append('<td style="word-wrap: break-word; white-space: normal;">' + row.next_action + '</td>');
+                            tr.append('<td style="word-wrap: break-word; white-space: normal;">' + row.key_milestone + '</td>');
+                            tr.append('<td style="word-wrap: break-word; white-space: normal;">' + row.challenges + '</td>');
+                            tr.append('<td style="word-wrap: break-word; white-space: normal;">' + row.solution + '</td>');
+                            tr.append('<td style="word-wrap: break-word; white-space: normal;">' + row.upcoming_priorities + '</td>');
+                            tr.append('<td style="word-wrap: break-word; white-space: normal;">' + row.remarks + '</td>');
+                            tbody.append(tr);
+                        });
+                        if (feather) {
+                            feather.replace();
+                        }
+                    } else {
+                        tbody.append('<tr><td colspan="10" class="text-center" style="padding: 40px; color: #94a3b8;">No updates logged for this date.</td></tr>');
+                    }
+                } else {
+                    appAlert.error(result.message);
+                }
+            },
+            error: function() {
+                $("#dpu-loading").hide();
+                $("#dpu-content").show();
+                appAlert.error("An error occurred while loading daily updates.");
+            }
+        });
+    };
 })();
 </script>
 

@@ -633,6 +633,14 @@ class Admin_dashboard extends Security_Controller
                 $engage_date = $row->project_deadline;
             }
 
+            // Only show future engage dates
+            if ($engage_date) {
+                $clean_date = date('Y-m-d', strtotime($engage_date));
+                if ($clean_date < $today) {
+                    $engage_date = null;
+                }
+            }
+
             $engage_str = '-';
             if ($engage_date) {
                 $clean_date = date('Y-m-d', strtotime($engage_date));
@@ -655,6 +663,19 @@ class Admin_dashboard extends Security_Controller
                                u.job_title AS designation,
                                COUNT(DISTINCT CASE WHEN (t.id IS NOT NULL AND ts.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed') AND (t.deadline IS NULL OR t.deadline >= '$today')) THEN t.id END) AS active_tasks_count,
                                MAX(CASE WHEN (t.id IS NOT NULL AND ts.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed') AND (t.deadline IS NOT NULL AND t.deadline != '0000-00-00 00:00:00' AND t.deadline >= '$today')) THEN t.deadline END) AS active_engage_up_to,
+                               (SELECT p_sub.title 
+                                FROM $tasks_table t_sub 
+                                JOIN $projects_table p_sub ON p_sub.id = t_sub.project_id
+                                JOIN $task_status_table ts_sub ON ts_sub.id = t_sub.status_id
+                                WHERE t_sub.assigned_to = u.id 
+                                  AND t_sub.deleted = 0 
+                                  AND p_sub.deleted = 0
+                                  AND ts_sub.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed')
+                                  AND t_sub.deadline IS NOT NULL 
+                                  AND t_sub.deadline != '0000-00-00 00:00:00'
+                                  AND t_sub.deadline >= '$today'
+                                ORDER BY t_sub.deadline DESC 
+                                LIMIT 1) AS engage_project_title,
                                GROUP_CONCAT(DISTINCT CASE WHEN (t.id IS NOT NULL AND ts.key_name NOT IN ('done', 'completed', 'closed', 'qa_completed') AND (t.deadline IS NULL OR t.deadline >= '$today')) THEN p.title END SEPARATOR ', ') AS active_projects,
                                (SELECT GROUP_CONCAT(DISTINCT p2.title SEPARATOR ', ') 
                                 FROM $project_members_table pm2
@@ -698,6 +719,7 @@ class Admin_dashboard extends Security_Controller
                     'designation'        => !empty($row->designation) ? $row->designation : '-',
                     'active_tasks_count' => $active_count,
                     'engage_up_to'       => $engage_str,
+                    'engage_project'     => $row->engage_project_title,
                     'projects'           => !empty($row->active_projects) ? $row->active_projects : '-'
                 ];
             } else {
@@ -857,15 +879,20 @@ class Admin_dashboard extends Security_Controller
 
         // 2. Timesheet hours for the date
         $ts_map = [];
-        foreach ($db->query(
-            "SELECT user_id,
-                    ROUND((COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(end_time, start_time))),0) +
-                           COALESCE(SUM(ROUND((hours * 60), 0) * 60),0)) / 3600, 2) AS total_hours
-             FROM $timesheet_table
-             WHERE deleted=0 AND status != 'open'
-               AND DATE(start_time) = '$report_date'
-             GROUP BY user_id"
-        )->getResult() as $row) {
+        $offset = convert_seconds_to_time_format(get_timezone_offset());
+        $ts_sql = "SELECT user_id,
+                          ROUND(SUM(
+                              IF(end_time > start_time, 
+                                 TIMESTAMPDIFF(SECOND, start_time, end_time), 
+                                 ROUND(hours * 3600)
+                              )
+                          ) / 3600, 2) AS total_hours
+                   FROM $timesheet_table
+                   WHERE deleted=0 AND status != 'open'
+                     AND DATE(ADDTIME(start_time, '$offset')) = '$report_date'
+                   GROUP BY user_id";
+
+        foreach ($db->query($ts_sql)->getResult() as $row) {
             $ts_map[$row->user_id] = (float)$row->total_hours;
         }
 
@@ -1032,18 +1059,19 @@ class Admin_dashboard extends Security_Controller
 
         $result = [];
         $i = 0;
+        $offset = convert_seconds_to_time_format(get_timezone_offset());
         foreach ($teams as $team) {
             $member_ids = array_filter(array_map('trim', explode(',', $team->members ?? '')));
             if (empty($member_ids)) continue;
 
             $ids_str = implode(',', array_map('intval', $member_ids));
 
-            $sql = "SELECT COUNT(DISTINCT DATE(start_time)) AS day_count
+            $sql = "SELECT COUNT(DISTINCT DATE(ADDTIME(start_time, '$offset'))) AS day_count
                     FROM $timesheet_table
                     WHERE deleted=0
                       AND status != 'open'
                       AND user_id IN ($ids_str)
-                      AND DATE(start_time) BETWEEN '$month_start' AND '$month_end'";
+                      AND DATE(ADDTIME(start_time, '$offset')) BETWEEN '$month_start' AND '$month_end'";
 
             $row = $db->query($sql)->getRow();
             $result[] = [

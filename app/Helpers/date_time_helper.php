@@ -706,3 +706,26 @@ if (!function_exists('format_since_then')) {
         }
     }
 }
+
+if (!function_exists('clean_hours_format')) {
+    function clean_hours_format($hours = 0) {
+        if ($hours === null || $hours === '') return '0h 0m';
+        $hVal = (float)$hours;
+        $sign = $hVal < 0 ? '-' : '';
+        $hVal = abs($hVal);
+        $hours_int = floor($hVal);
+        $mins = round(($hVal - $hours_int) * 60);
+        if ($mins == 60) {
+            $hours_int += 1;
+            $mins = 0;
+        }
+        return "{$sign}{$hours_int}h {$mins}m";
+    }
+}
+
+if (!function_exists('clean_seconds_to_hours_format')) {
+    function clean_seconds_to_hours_format($seconds = 0) {
+        $hours = $seconds / 3600;
+        return clean_hours_format($hours);
+    }
+}

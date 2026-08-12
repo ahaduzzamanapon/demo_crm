@@ -47,6 +47,7 @@ $lang["select_team_members_to_share"] = "Select team members who can access this
 $lang["shared_file_note"] = "Shared members can view and download this file.";
 $lang["no_team_members_found"] = "No other team members found.";
 $lang["can_create_sub_tasks"] = "Can create sub tasks";
+$lang["bulk_log_time"] = "Bulk Log Time";
 return $lang;
 
 

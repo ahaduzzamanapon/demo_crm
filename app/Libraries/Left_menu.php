@@ -77,6 +77,14 @@ class Left_menu
 
             $sidebar_menu["tasks"] = array("name" => "tasks", "url" => "tasks/all_tasks", "class" => "check-circle");
 
+            $sidebar_menu["bulk_log"] = array(
+                "name" => "bulk_log_time",
+                "url" => "bulk_log_time",
+                "class" => "clock",
+                "badge" => "New",
+                "badge_class" => "bg-danger"
+            );
+
             if (get_setting("module_lead") == "1" && ($this->ci->login_user->is_admin || $access_lead)) {
                 $sidebar_menu["leads"] = array("name" => "leads", "url" => "leads", "class" => "layers");
             }

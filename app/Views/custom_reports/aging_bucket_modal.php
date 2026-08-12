@@ -44,14 +44,14 @@
                         <?php echo !empty($task->collaborator_names) ? htmlspecialchars($task->collaborator_names) : '<span class="text-muted">—</span>'; ?>
                     </td>
                     <td class="text-center">
-                        <?php echo $task->estimated_time ? number_format($task->estimated_time, 2) : '—'; ?>
+                        <?php echo $task->estimated_time ? clean_hours_format($task->estimated_time) : '—'; ?>
                     </td>
                     <td class="text-center">
                         <?php
                         $logged = (float)($task->logged_hours ?? 0);
                         $est    = (float)($task->estimated_time ?? 0);
                         $color  = ($est > 0 && $logged > $est) ? 'color:#dc2626;font-weight:600;' : '';
-                        echo $logged > 0 ? "<span style='$color'>" . number_format($logged, 2) . '</span>' : '—';
+                        echo $logged > 0 ? "<span style='$color'>" . clean_hours_format($logged) . '</span>' : '—';
                         ?>
                     </td>
                     <td class="text-center">
